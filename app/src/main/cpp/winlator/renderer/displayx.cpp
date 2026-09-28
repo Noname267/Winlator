@@ -235,7 +235,6 @@ void DisplayX::networkThreadLoop() {
                     printf("Client has disconnected");
                     epoll_ctl(efd, EPOLL_CTL_DEL, events[i].data.fd, nullptr);
                     close(events[i].data.fd);
-                    clientSwapchains.erase(clientSwapchains.begin(), clientSwapchains.end());
                     continue;
                 }
                 
