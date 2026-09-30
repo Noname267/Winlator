@@ -174,6 +174,7 @@ static int readFD(int& socket) {
 }
 
 void DisplayX::networkThreadLoop() {
+    static constexpr int CONNECT = 0;
     static constexpr int ADD_CLIENT_SWAPCHAIN = 1;
     static constexpr int PRESENT_IMAGE = 2;
     static constexpr int DESTROY_CLIENT_SWAPCHAIN = 3;
@@ -245,6 +246,12 @@ void DisplayX::networkThreadLoop() {
                         continue;
                             
                     switch (request_code) {
+                        case CONNECT:
+                        {
+                            int result = 0;
+                            write(events[i].data.fd, &result, 4);
+                            break;
+                        }
                         case ADD_CLIENT_SWAPCHAIN:
                         {
                             uint8_t id;
