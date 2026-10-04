@@ -248,8 +248,7 @@ void DisplayX::networkThreadLoop() {
                     switch (request_code) {
                         case CONNECT:
                         {
-                            int result = 0;
-                            write(events[i].data.fd, &result, 4);
+                            printf("Received new connection from client Vulkan");
                             break;
                         }
                         case ADD_CLIENT_SWAPCHAIN:
@@ -257,27 +256,40 @@ void DisplayX::networkThreadLoop() {
                             uint8_t id;
                             uint32_t imageCount;
                             uint32_t windowId;
+                            uint32_t presentMode;
+                            uint32_t format;
+                            uint32_t width;
+                            uint32_t height;
                                     
                             read(events[i].data.fd, &id, 1);
                             read(events[i].data.fd, &imageCount, 4);
                             read(events[i].data.fd, &windowId, 4);
+                            read(events[i].data.fd, &presentMode, 4);
+                            read(events[i].data.fd, &format, 4);
+                            read(events[i].data.fd, &width, 4);
+                            read(events[i].data.fd, &height, 4);
                             
                             auto window = windowManager->getWindow(windowId);
-                            if (!window)
+                            if (!window) 
                                 continue;
                                     
-                            printf("Received new swapchain from client, id %d images %d", id, imageCount);
+                            printf("Received new swapchain from client, id %d, images %d, presentMode %d, format %d, width %d, height %d", id, imageCount, presentMode, format, width, height);
                             
                             auto swapchain = std::make_unique<DisplayXSwapchain>();
                             swapchain->id = id;
                             swapchain->window = window;
+                            swapchain->width = width;
+                            swapchain->height = height;
+                            swapchain->imageCount = imageCount;
+                            swapchain->presentMode = presentMode;
+                            swapchain->format = format;
+                            
                             swapchain->images.resize(imageCount);
-                                    
                             for (uint32_t j = 0; j < imageCount; j++) {
                                 auto drawable = std::make_unique<Drawable>();
                                 drawable->id = -1;
-                                drawable->width = window->width;
-                                drawable->height = window->height;
+                                drawable->width = width;
+                                drawable->height = height;
                                 drawable->data = nullptr;
                                 AHardwareBuffer_recvHandleFromUnixSocket(events[i].data.fd, &drawable->ahb);
                                 AHardwareBuffer_Desc outDesc{};
@@ -300,7 +312,7 @@ void DisplayX::networkThreadLoop() {
                         case PRESENT_IMAGE:
                         {
                             uint8_t id;
-                            int index;
+                            uint32_t index;
                             int fence;
                             uint64_t present_id;
                                     
@@ -318,8 +330,8 @@ void DisplayX::networkThreadLoop() {
                             auto drawable = swapchain->images.at(index).get();
                             if (!drawable)
                                 continue;
-                            
-                            auto lock = presentLock.lock();   
+                                
+                            auto lock = presentLock.lock();       
                             
                             swapchain->window->externalContent = drawable;
                             
@@ -331,7 +343,7 @@ void DisplayX::networkThreadLoop() {
                             presentRequest->window = swapchain->window;
                             presentRequest->swapchainId = id;
                             
-                            presentRequests.push(std::move(presentRequest));
+                            presentRequests.push(std::move(presentRequest), swapchain->presentMode == VK_PRESENT_MODE_MAILBOX_KHR ? true : false);
                             if (xServer->isShowFPS) env->CallVoidMethod(xServer->xserverDisplayActivity, cache->updateFrameRating, swapchain->window->windowObj);
                             if (!presentRR) presentLock.notify();
                             break;
@@ -343,6 +355,8 @@ void DisplayX::networkThreadLoop() {
                             auto swapchain = clientSwapchains[id].get();
                             if (!swapchain)
                                 continue;
+                            
+                            swapchain->images.clear();
                             
                             swapchain->window->externalContent = nullptr;
                             clientSwapchains.erase(id);
@@ -432,7 +446,8 @@ void DisplayX::eventThreadLoop() {
                 auto l = presentLock.lock();
                 eventsPending--;
             }
-            presentLock.notify();
+            if (eventsPending == 0)
+                presentLock.notify();
         }
         
         if (cursorUpdate) {
@@ -506,29 +521,33 @@ void DisplayX::presentThreadLoop() {
             break;
         }
         
-        std::queue<std::unique_ptr<PresentRequest>> requests;
+        std::deque<std::unique_ptr<PresentRequest>> requests;
         
-        while (!presentRequests.empty()) {
-            auto presentRequest = presentRequests.pop();
-            requests.push(std::move(presentRequest));
+        if (!presentRR) {
+            requests = presentRequests.getLast();
+        }
+        else {
+            requests = presentRequests.buildWindowTree();
+            requestUpdate = false;
         }
         
         if (vsyncId > -1) pfnASurfaceTransactionSetFrameTimeline(presentTransaction, vsyncId);
         
-        if (presentRR) requestUpdate = false;
         lock.unlock();
         
         auto completeContext = std::make_unique<OnCompleteContext>();
         
         while (!requests.empty()) {
             auto presentRequest = std::move(requests.front());
-            requests.pop();
+            requests.pop_front();
             
             auto window = presentRequest->window;
-            if (!window || !window->control) continue;
+            if (!window || !window->control) 
+                continue;
         
             auto drawable = presentRequest->drawable;
-            if (!drawable) continue;
+            if (!drawable) 
+                continue;
         
             if (!window->enabled) {
                 pfnASurfaceTransactionSetBuffer(presentTransaction, window->control, nullptr, presentRequest->sync_fence);
@@ -553,8 +572,11 @@ void DisplayX::presentThreadLoop() {
             }
         }
         
-        if (perfMode && pfnASurfaceTransactionSetOnCommit) pfnASurfaceTransactionSetOnCommit(presentTransaction, this, DisplayX::onCommitCallback);
-        if (!completeContext->requests.empty()) pfnASurfaceTransactionSetOnComplete(presentTransaction, completeContext.release(), DisplayX::onCompleteCallback);
+        if (perfMode && pfnASurfaceTransactionSetOnCommit) 
+            pfnASurfaceTransactionSetOnCommit(presentTransaction, this, DisplayX::onCommitCallback);
+        if (!completeContext->requests.empty()) 
+            pfnASurfaceTransactionSetOnComplete(presentTransaction, completeContext.release(), DisplayX::onCompleteCallback);
+            
         pfnASurfaceTransactionApply(presentTransaction);
     }
     
@@ -670,7 +692,8 @@ void DisplayX::queueEvent(std::function<void()> func) {
 void DisplayX::requestWindowUpdate(Window *window) {
     auto lock = presentLock.lock();
     
-    if (!window || window->isHidden()) return;
+    if (!window || window->isHidden()) 
+        return;
     
     auto drawable = window->drawable.get();
     
@@ -684,17 +707,20 @@ void DisplayX::requestWindowUpdate(Window *window) {
     presentRequest->clientFd = -1;
     presentRequest->window = window;
     
-    presentRequests.push(std::move(presentRequest));
+    presentRequests.push(std::move(presentRequest), true);
     if (!presentRR) presentLock.notify();
 }
 
 void DisplayX::requestCursorUpdate() {
-    if (!cursorVisible) return;
+    if (!cursorVisible) 
+        return;
+        
     this->cursorUpdate = true;
 }
 
 void DisplayX::createWindowControl(Window *window) {
-    if (!window->parent || !window->inputOutput) return;
+    if (!window->parent || !window->inputOutput) 
+        return;
         
     window->control = pfnASurfaceControlCreate(window->parent->control, "displayx");
     if (pfnASurfaceControlAcquire)    
@@ -720,15 +746,21 @@ void DisplayX::createWindowControl(Window *window) {
 }
 
 void DisplayX::destroyWindowControl(Window *window) {
-    if (!window) return;
-    if (!window->control) return;
+    if (!window || !window->control)
+        return;
+    
+    {
+        auto lock = presentLock.lock();
+        presentRequests.removeWindow(window);
+    }
     
     pfnASurfaceControlRelease(window->control);
     window->control = nullptr;
 }
 
 void DisplayX::mapWindow(Window *window) {
-    if (!window->control) return;
+    if (!window->control) 
+        return;
     
     if (!windowManager->getUnviewableWMClass().empty() && !strcmp(window->className.c_str(), windowManager->getUnviewableWMClass().c_str()))
         window->enabled = false;
@@ -738,14 +770,16 @@ void DisplayX::mapWindow(Window *window) {
 }
 
 void DisplayX::unmapWindow(Window *window) {
-    if (!window->control) return;
+    if (!window->control) 
+        return;
     
     pfnASurfaceTransactionSetVisibility(windowTransaction, window->control, ASURFACE_TRANSACTION_VISIBILITY_HIDE);
     pfnASurfaceTransactionApply(windowTransaction);
 }
 
 void DisplayX::changeGeometry(Window *window, bool resized) {
-    if (!window->control) return;
+    if (!window->control)
+        return;
     
     if (resized)
         pfnASurfaceTransactionSetBuffer(windowTransaction, window->control, nullptr, -1);
@@ -778,7 +812,8 @@ void DisplayX::updateCursor(Cursor *cursor) {
 }
 
 void DisplayX::updateCursorPosition() {
-    if (!cursorManager->control) return;
+    if (!cursorManager->control) 
+        return;
     
     jobject pointWindowObj = env->CallObjectMethod(xServer->inputDeviceManager, cache->getPointWindow);
     jint id = env->GetIntField(pointWindowObj, cache->windowID);
@@ -817,7 +852,8 @@ void DisplayX::createRootCursorControl() {
     
     auto rootCursor = cursorManager->getRootCursor();
     auto rootWindow = windowManager->getRootWindow();
-    if (!rootCursor || !rootWindow) return;
+    if (!rootCursor || !rootWindow) 
+        return;
     
     cursorManager->control = pfnASurfaceControlCreate(rootWindow->control, "displayx");
     if (pfnASurfaceControlAcquire)
@@ -830,7 +866,8 @@ void DisplayX::showCursor() {
     if (!cursorManager->control) createRootCursorControl();
     
     auto rootCursor = cursorManager->getRootCursor();
-    if (!rootCursor) return;
+    if (!rootCursor) 
+        return;
     
     pfnASurfaceTransactionSetBuffer(cursorTransaction, cursorManager->control, rootCursor->image->ahb, -1);
     pfnASurfaceTransactionSetVisibility(cursorTransaction, cursorManager->control, cursorVisible ? ASURFACE_TRANSACTION_VISIBILITY_SHOW : ASURFACE_TRANSACTION_VISIBILITY_HIDE);
@@ -839,7 +876,8 @@ void DisplayX::showCursor() {
 }
 
 void DisplayX::reparentWindow(Window *window, Window *parent) {
-    if (!window->control) return;
+    if (!window->control) 
+        return;
     
     pfnASurfaceTransactionReparent(windowTransaction, window->control, parent->control);
     if (pfnASurfaceTransactionSetPosition) {
@@ -871,7 +909,8 @@ void DisplayX::createRootWindowControl() {
     int ret;
     
     auto rootWindow = windowManager->getRootWindow();
-    if (!rootWindow) return;
+    if (!rootWindow) 
+        return;
     
     rootWindow->control = pfnASurfaceControlCreateFromWindow(this->native_window, "displayx");
     if (pfnASurfaceControlAcquire)      
@@ -885,8 +924,8 @@ void DisplayX::destroyRootWindowControl() {
     pfnASurfaceTransactionDelete(windowTransaction);
     
     auto rootWindow = windowManager->getRootWindow();
-    if (!rootWindow) return;
-    if (!rootWindow->control) return;
+    if (!rootWindow || !rootWindow->control)
+        return;
 
     pfnASurfaceControlRelease(rootWindow->control);
     rootWindow->control = nullptr;
@@ -896,14 +935,16 @@ void DisplayX::destroyRootCursorControl() {
     pfnASurfaceTransactionDelete(cursorTransaction);
     
     auto rootCursor = cursorManager->getRootCursor();
-    if (!rootCursor) return;
+    if (!rootCursor) 
+        return;
     
     if (rootCursor->image->ahb) {
         AHardwareBuffer_release(rootCursor->image->ahb);
         rootCursor->image->ahb = nullptr;
     }
     
-    if (!cursorManager->control) return;
+    if (!cursorManager->control)
+        return;
 
     pfnASurfaceControlRelease(cursorManager->control);
     cursorManager->control = nullptr;
@@ -911,7 +952,8 @@ void DisplayX::destroyRootCursorControl() {
 
 void DisplayX::resizeRootWindow() {
     auto rootWindow = windowManager->getRootWindow();
-    if (!rootWindow) return;
+    if (!rootWindow) 
+        return;
     
     viewTransformation.update(surfaceWidth, surfaceHeight, rootWindow->width, rootWindow->height);
     
@@ -953,8 +995,11 @@ void DisplayX::restoreControlState() {
     
     for (const auto& entry : windowTree) {
         auto window = entry.second.get();
-        if (window == rootWindow) continue;
-        if (!window->control || !window->parent->control) continue;
+        if (window == rootWindow)
+            continue;
+            
+        if (!window->control || !window->parent->control)
+            continue;
         
         pfnASurfaceTransactionReparent(windowTransaction, window->control, window->parent->control);
         pfnASurfaceTransactionApply(windowTransaction);
@@ -968,7 +1013,8 @@ void DisplayX::restoreControlState() {
 
 void DisplayX::toggleFullscreen() {
     auto rootWindow = windowManager->getRootWindow();
-    if (!rootWindow) return;
+    if (!rootWindow) 
+        return;
     
     fullscreen = !fullscreen;
     
