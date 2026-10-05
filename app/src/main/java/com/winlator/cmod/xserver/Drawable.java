@@ -7,6 +7,8 @@ import com.winlator.cmod.core.Callback;
 import com.winlator.cmod.math.Mathf;
 import com.winlator.cmod.renderer.GPUImage;
 
+import dalvik.annotation.optimization.CriticalNative;
+import dalvik.annotation.optimization.FastNative;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
@@ -171,26 +173,27 @@ public class Drawable extends XResource {
     public boolean isOffscreen() {
         return this.offscreen;
     }
-
+    
+    @FastNative
     private static native void drawBitmap(short width, short height, ByteBuffer srcData, short stride, long dstAHB);
-
+    @CriticalNative
     private static native void drawAlphaMaskedBitmap(byte foreRed, byte foreGreen, byte foreBlue, byte backRed, byte backGreen, byte backBlue, long srcAHB, short srcStride, long maskAHB, short maskStride, short width, short height, short stride, long dstAHB);
-
+    @FastNative
     private static native void copyArea1(short srcX, short srcY, short dstX, short dstY, short width, short height, short srcStride, short dstStride, ByteBuffer srcData, long dstAHB);
-    
+    @FastNative
     private static native void copyArea2(short srcX, short srcY, short dstX, short dstY, short width, short height, short srcStride, short dstStride, long srcAHB, ByteBuffer dstData);
-    
+    @CriticalNative
     private static native void copyArea3(short srcX, short srcY, short dstX, short dstY, short width, short height, short srcStride, short dstStride, long srcAHB, long dstAHB);
-
+    @CriticalNative
     private static native void copyAreaOp(short srcX, short srcY, short dstX, short dstY, short width, short height, short srcStride, short dstStride, long srcAHB, long dstAHB, int gcFunction);
-
+    @CriticalNative
     private static native void fillRect(short x, short y, short width, short height, int color, short stride, long dstAHB);
-
+    @CriticalNative
     private static native void drawLine(short x0, short y0, short x1, short y1, int color, short lineWidth, short stride, long dstAHB);
-    
+    @FastNative
     private native long allocate(int width, int height, int format);
-
+    @FastNative
     public native ByteBuffer lockBuffer(long ahb);
-
+    @FastNative
     public native void unlockBuffer(long ahb);
 }

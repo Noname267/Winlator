@@ -77,9 +77,10 @@ static int setPixelOp(int srcColor, int dstColor, enum GCFunction gcFunction) {
 
 JNIEXPORT void JNICALL
 Java_com_winlator_cmod_xserver_Drawable_drawBitmap(JNIEnv *env, jclass obj,
-                                              jshort width, jshort height, 
-                                              jobject srcData, jshort dstStride,
-                                              jlong dstData) {
+                                                   jshort width, jshort height, 
+                                                   jobject srcData, jshort dstStride,
+                                                   jlong dstData) 
+{
     int *dstDataAddr;
     int ret;
     
@@ -110,10 +111,11 @@ Java_com_winlator_cmod_xserver_Drawable_drawBitmap(JNIEnv *env, jclass obj,
 
 JNIEXPORT void JNICALL
 Java_com_winlator_cmod_xserver_Drawable_copyArea1(JNIEnv *env, jclass obj, jshort srcX,
-                                            jshort srcY, jshort dstX, jshort dstY,
-                                            jshort width, jshort height, 
-                                            jshort srcStride, jshort dstStride, 
-                                            jobject srcData, jlong dstData) {
+                                                  jshort srcY, jshort dstX, jshort dstY,
+                                                  jshort width, jshort height, 
+                                                  jshort srcStride, jshort dstStride, 
+                                                  jobject srcData, jlong dstData)
+{
     int ret;
     uint8_t *dstDataAddr;
     
@@ -140,10 +142,11 @@ Java_com_winlator_cmod_xserver_Drawable_copyArea1(JNIEnv *env, jclass obj, jshor
 
 JNIEXPORT void JNICALL
 Java_com_winlator_cmod_xserver_Drawable_copyArea2(JNIEnv *env, jclass obj, jshort srcX,
-                                            jshort srcY, jshort dstX, jshort dstY,
-                                            jshort width, jshort height, jshort srcStride,
-                                            jshort dstStride, jlong srcData,
-                                            jobject dstData) {
+                                                  jshort srcY, jshort dstX, jshort dstY,
+                                                  jshort width, jshort height, jshort srcStride,
+                                                  jshort dstStride, jlong srcData,
+                                                  jobject dstData) 
+{
     int ret;                                            
     uint8_t *srcDataAddr;
     
@@ -169,11 +172,12 @@ Java_com_winlator_cmod_xserver_Drawable_copyArea2(JNIEnv *env, jclass obj, jshor
 }
 
 JNIEXPORT void JNICALL
-Java_com_winlator_cmod_xserver_Drawable_copyArea3(JNIEnv *env, jclass obj, jshort srcX,
-                                            jshort srcY, jshort dstX, jshort dstY,
-                                            jshort width, jshort height, jshort srcStride,
-                                            jshort dstStride, jlong srcData,
-                                            jlong dstData) {
+Java_com_winlator_cmod_xserver_Drawable_copyArea3(jshort srcX, jshort srcY, 
+                                                  jshort dstX, jshort dstY,
+                                                  jshort width, jshort height, jshort srcStride,
+                                                  jshort dstStride, jlong srcData,
+                                                  jlong dstData)
+{
     int ret;                                            
     uint8_t *srcDataAddr;
     uint8_t *dstDataAddr;
@@ -205,11 +209,12 @@ Java_com_winlator_cmod_xserver_Drawable_copyArea3(JNIEnv *env, jclass obj, jshor
 }
 
 JNIEXPORT void JNICALL
-Java_com_winlator_cmod_xserver_Drawable_copyAreaOp(JNIEnv *env, jclass obj, jshort srcX,
-                                              jshort srcY, jshort dstX, jshort dstY,
-                                              jshort width, jshort height, jshort srcStride,
-                                              jshort dstStride, jlong srcData,
-                                              jlong dstData, int gcFunction) {
+Java_com_winlator_cmod_xserver_Drawable_copyAreaOp(jshort srcX, jshort srcY, 
+                                                   jshort dstX, jshort dstY,
+                                                   jshort width, jshort height, jshort srcStride,
+                                                   jshort dstStride, jlong srcData,
+                                                   jlong dstData, int gcFunction) 
+{
     int ret;                                              
     uint8_t *srcDataAddr;
     uint8_t *dstDataAddr;
@@ -251,9 +256,11 @@ Java_com_winlator_cmod_xserver_Drawable_copyAreaOp(JNIEnv *env, jclass obj, jsho
 }
 
 JNIEXPORT void JNICALL
-Java_com_winlator_cmod_xserver_Drawable_fillRect(JNIEnv *env, jclass obj, jshort x, jshort y,
-                                            jshort width, jshort height, jint color, jshort stride,
-                                            jlong data) {
+Java_com_winlator_cmod_xserver_Drawable_fillRect(jshort x, jshort y,
+                                                 jshort width, jshort height, 
+                                                 jint color, jshort stride,
+                                                 jlong data) 
+{
     int ret;                                            
     uint8_t *dataAddr;
      
@@ -290,9 +297,11 @@ Java_com_winlator_cmod_xserver_Drawable_fillRect(JNIEnv *env, jclass obj, jshort
 }
 
 JNIEXPORT void JNICALL
-Java_com_winlator_cmod_xserver_Drawable_drawLine(JNIEnv *env, jclass obj, jshort x0, jshort y0,
-                                            jshort x1, jshort y1, jint color, jshort lineWidth,
-                                            jshort stride, jlong data) {
+Java_com_winlator_cmod_xserver_Drawable_drawLine(jshort x0, jshort y0,
+                                                 jshort x1, jshort y1, 
+                                                 jint color, jshort lineWidth,
+                                                 jshort stride, jlong data) 
+{
     int ret;                                            
     uint8_t *dataAddr;
     
@@ -350,14 +359,14 @@ Java_com_winlator_cmod_xserver_Drawable_drawLine(JNIEnv *env, jclass obj, jshort
 }
 
 JNIEXPORT void JNICALL
-Java_com_winlator_cmod_xserver_Drawable_drawAlphaMaskedBitmap(JNIEnv *env, jclass obj,
-                                                         jbyte foreRed, jbyte foreGreen,
-                                                         jbyte foreBlue, jbyte backRed,
-                                                         jbyte backGreen, jbyte backBlue,
-                                                         jlong srcData, jshort srcStride,
-                                                         jlong maskData, jshort maskStride,
-                                                         jshort width, jshort height,
-                                                         jshort stride, jlong dstData) {
+Java_com_winlator_cmod_xserver_Drawable_drawAlphaMaskedBitmap(jbyte foreRed, jbyte foreGreen,
+                                                              jbyte foreBlue, jbyte backRed,
+                                                              jbyte backGreen, jbyte backBlue,
+                                                              jlong srcData, jshort srcStride,
+                                                              jlong maskData, jshort maskStride,
+                                                              jshort width, jshort height,
+                                                              jshort stride, jlong dstData) 
+{
     int ret;                                                         
     int *srcDataAddr;
     int *maskDataAddr;
@@ -410,7 +419,8 @@ JNIEXPORT void JNICALL
 Java_com_winlator_cmod_xserver_Pixmap_toBitmap(JNIEnv *env, jclass obj, 
                                                jshort colorStride, long colorData,
                                                jshort maskStride, long maskData, 
-                                               jobject bitmap) {
+                                               jobject bitmap) 
+{
     int ret;                                          
     char *colorDataAddr;
     char *maskDataAddr;
@@ -470,7 +480,8 @@ Java_com_winlator_cmod_xserver_Pixmap_toBitmap(JNIEnv *env, jclass obj,
 }
 
 JNIEXPORT jlong JNICALL
-Java_com_winlator_cmod_xserver_Drawable_allocate(JNIEnv *env, jclass obj, jint width, jint height, jint format) {
+Java_com_winlator_cmod_xserver_Drawable_allocate(JNIEnv *env, jclass obj, jint width, jint height, jint format) 
+{
     int ret;
     AHardwareBuffer *hardwareBuffer;
     
@@ -512,7 +523,8 @@ Java_com_winlator_cmod_xserver_Drawable_allocate(JNIEnv *env, jclass obj, jint w
 }
 
 JNIEXPORT jobject JNICALL
-Java_com_winlator_cmod_xserver_Drawable_lockBuffer(JNIEnv *env, jclass obj, jlong ahb) {
+Java_com_winlator_cmod_xserver_Drawable_lockBuffer(JNIEnv *env, jclass obj, jlong ahb)
+{
     int ret;
     void *addr;
     
@@ -535,7 +547,8 @@ Java_com_winlator_cmod_xserver_Drawable_lockBuffer(JNIEnv *env, jclass obj, jlon
 }
 
 JNIEXPORT void JNICALL
-Java_com_winlator_cmod_xserver_Drawable_unlockBuffer(JNIEnv *env, jclass obj, jlong ahb) {
+Java_com_winlator_cmod_xserver_Drawable_unlockBuffer(JNIEnv *env, jclass obj, jlong ahb) 
+{
     int ret;
     void *addr;
     

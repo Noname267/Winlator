@@ -2,6 +2,7 @@ package com.winlator.cmod.xserver;
 
 import android.graphics.Bitmap;
 
+import dalvik.annotation.optimization.FastNative;
 import java.nio.ByteBuffer;
 
 public class Pixmap extends XResource {
@@ -19,6 +20,7 @@ public class Pixmap extends XResource {
         toBitmap(drawable.getStride(), drawable.backingAHB, maskStride, maskData, bitmap);
         return bitmap;
     }
-
+    
+    @FastNative
     private static native void toBitmap(short colorStride, long colorData, short maskStride, long maskData, Bitmap bitmap);
 }
