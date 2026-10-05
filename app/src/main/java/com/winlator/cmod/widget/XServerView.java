@@ -30,6 +30,7 @@ import com.winlator.cmod.xserver.WindowAttributes;
 import com.winlator.cmod.xserver.WindowManager;
 import com.winlator.cmod.xserver.XLock;
 import com.winlator.cmod.xserver.XServer;
+import dalvik.annotation.optimization.CriticalNative;
 import dalvik.annotation.optimization.FastNative;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -241,8 +242,8 @@ public class XServerView extends SurfaceView implements SurfaceHolder.Callback, 
     public native void nativeChangeWindowZOrder(int stackMode, int id, int siblingId);
     @FastNative
     public native void nativeUpdateWindowGeometry(int id, int width, int height, int x, int y, boolean resized);
-    @FastNative
-    public native void nativePointerMove(int x, int y);
+    @CriticalNative
+    public native static void nativePointerMove(int x, int y);
     @FastNative
     public native void nativeToggleFullscreen();
     @FastNative
@@ -257,8 +258,8 @@ public class XServerView extends SurfaceView implements SurfaceHolder.Callback, 
     public native void nativeSetWindowClassName(int id, String className);
     @FastNative
     public native void nativeUpdatePointWindow(int id);
-    @FastNative
-    public native void nativeUpdateWindowContent(int id);
+    @CriticalNative
+    public native static void nativeUpdateWindowContent(int id);
     @FastNative
     public native void nativeReparentWindow(int id, int parentId, short x, short y);
     @FastNative
@@ -269,12 +270,12 @@ public class XServerView extends SurfaceView implements SurfaceHolder.Callback, 
     public native void nativeStop();
     @FastNative
     public native void nativeAddDirectContent(int windowId, Drawable drawable);
-    @FastNative
-    public native void nativeUpdateDirectContent(int windowId, int drawableId);
+    @CriticalNative
+    public native static void nativeUpdateDirectContent(int windowId, int drawableId);
     @FastNative
     public native void nativeRemoveDirectContent(int windowId, int pixmapId);
     @FastNative
     public native void nativeSetCompositeRedirected(int windowId, boolean redirected);
-    @FastNative
-    public native void nativeCompositeRedirect(int srcDrawableId, int dstDrawableId, short dstX, short dstY);
+    @CriticalNative
+    public native static void nativeCompositeRedirect(int srcDrawableId, int dstDrawableId, short dstX, short dstY);
 }
