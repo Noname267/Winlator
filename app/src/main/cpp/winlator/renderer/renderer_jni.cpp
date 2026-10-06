@@ -48,20 +48,27 @@ Java_com_winlator_cmod_widget_XServerView_nativeInit(JNIEnv *env, jobject thiz, 
     
     auto drawable = std::make_unique<struct Drawable>();
     jobject drawableObj = env->CallObjectMethod(rootWindowObj, cache.windowGetContent);
+    jobject gpuImageObj = env->CallObjectMethod(drawableObj, cache.drawableGetGPUImage);
+    
     drawable->id = env->GetIntField(drawableObj, cache.drawableID);
     drawable->glTexture = nullptr;
     drawable->width = env->GetShortField(drawableObj, cache.drawableWidth);
     drawable->height = env->GetShortField(drawableObj, cache.drawableHeight);
-    drawable->ahb = (AHardwareBuffer *)env->GetLongField(drawableObj, cache.drawableAHB);
-    drawable->stride = env->GetShortField(drawableObj, cache.drawableStride);
-    drawable->format = env->GetIntField(drawableObj, cache.drawableFormat);
+    
+    drawable->ahb = (AHardwareBuffer *)env->CallLongMethod(gpuImageObj, cache.gpuImageGetAHB);
+    drawable->stride = env->CallShortMethod(gpuImageObj, cache.gpuImageGetStride);
+    drawable->format = env->GetIntField(gpuImageObj, cache.gpuImageFormat);
+    
     drawable->data = nullptr;
     drawable->isDirectContent = false;
     drawable->isDisplayX = false;
     drawable->drawableObj = env->NewGlobalRef(drawableObj);
+    drawable->gpuImageObj = env->NewGlobalRef(gpuImageObj);
+    
     rootWindow->drawable = std::move(drawable);
     
     env->DeleteLocalRef(drawableObj);
+    env->DeleteLocalRef(gpuImageObj);
     
     rootWindow->cursor = nullptr;
     rootWindow->parent = nullptr;
@@ -208,19 +215,25 @@ Java_com_winlator_cmod_widget_XServerView_nativeCreateWindow(JNIEnv *env, jobjec
     if (isInputOutput) {
         auto drawable = std::make_unique<struct Drawable>();
         jobject drawableObj = env->CallObjectMethod(windowObj, cache.windowGetContent);
+        jobject gpuImageObj = env->CallObjectMethod(drawableObj, cache.drawableGetGPUImage);
+        
         drawable->id = env->GetIntField(drawableObj, cache.drawableID);
         drawable->glTexture = nullptr;
         drawable->width = env->GetShortField(drawableObj, cache.drawableWidth);
         drawable->height = env->GetShortField(drawableObj, cache.drawableHeight);
         drawable->data = nullptr;
-        drawable->ahb = (AHardwareBuffer *)env->GetLongField(drawableObj, cache.drawableAHB);
-        drawable->stride = env->GetShortField(drawableObj, cache.drawableStride);
-        drawable->format = env->GetIntField(drawableObj, cache.drawableFormat);
+        
+        drawable->ahb = (AHardwareBuffer *)env->CallLongMethod(gpuImageObj, cache.gpuImageGetAHB);
+        drawable->stride = env->CallShortMethod(gpuImageObj, cache.gpuImageGetStride);
+        drawable->format = env->GetIntField(gpuImageObj, cache.gpuImageFormat);
+        
         drawable->isDirectContent = false;
         drawable->isDisplayX = false;
         drawable->drawableObj = env->NewGlobalRef(drawableObj);
         window->drawable = std::move(drawable);
+        
         env->DeleteLocalRef(drawableObj);
+        env->DeleteLocalRef(gpuImageObj);
     }
     
     window->cursor = nullptr;
@@ -313,19 +326,25 @@ extern "C" JNIEXPORT void JNICALL
 Java_com_winlator_cmod_widget_XServerView_nativeCreateCursor(JNIEnv *env, jobject thiz, jobject cursorObj) {
     auto drawable = std::make_unique<struct Drawable>();
     jobject drawableObj = env->GetObjectField(cursorObj, cache.cursorImage);
+    jobject gpuImageObj = env->CallObjectMethod(drawableObj, cache.drawableGetGPUImage);
+    
     drawable->id = env->GetIntField(drawableObj, cache.drawableID);
     drawable->width = env->GetShortField(drawableObj, cache.drawableWidth);
     drawable->height = env->GetShortField(drawableObj, cache.drawableHeight);
     drawable->data = nullptr;
-    drawable->ahb = (AHardwareBuffer *)env->GetLongField(drawableObj, cache.drawableAHB);
-    drawable->stride = env->GetShortField(drawableObj, cache.drawableStride);
-    drawable->format = env->GetIntField(drawableObj, cache.drawableFormat);
+    
+    drawable->ahb = (AHardwareBuffer *)env->CallLongMethod(gpuImageObj, cache.gpuImageGetAHB);
+    drawable->stride = env->CallShortMethod(gpuImageObj, cache.gpuImageGetStride);
+    drawable->format = env->GetIntField(gpuImageObj, cache.gpuImageFormat);
+    
     drawable->isDirectContent = false;
     drawable->isDisplayX = false;
     drawable->glTexture = nullptr;
     drawable->drawableObj = env->NewGlobalRef(drawableObj);
+    drawable->gpuImageObj = env->NewGlobalRef(gpuImageObj);
     
     env->DeleteLocalRef(drawableObj);
+    env->DeleteLocalRef(gpuImageObj);
     
     auto cursor = std::make_unique<struct Cursor>();
     cursor->id = env->GetIntField(cursorObj, cache.cursorID);
@@ -432,17 +451,28 @@ Java_com_winlator_cmod_widget_XServerView_nativeUpdateWindowGeometry(JNIEnv *env
     window->y = y;
     
     if (resized && window->inputOutput) {
+        env->DeleteGlobalRef(window->drawable->gpuImageObj);
         env->DeleteGlobalRef(window->drawable->drawableObj);
+        
         jobject drawableObj = env->CallObjectMethod(window->windowObj, cache.windowGetContent);
-        window->drawable->drawableObj = env->NewGlobalRef(drawableObj);
-        env->DeleteLocalRef(drawableObj);
+        jobject gpuImageObj = env->CallObjectMethod(drawableObj, cache.drawableGetGPUImage);
+        
         window->drawable->data = nullptr;
         window->drawable->width = width;
         window->drawable->height = height;
-        window->drawable->ahb = (AHardwareBuffer *)env->GetLongField(window->drawable->drawableObj, cache.drawableAHB);
-        window->drawable->stride = env->GetShortField(window->drawable->drawableObj, cache.drawableStride);
-        if (window->drawable->glTexture != nullptr) window->drawable->glTexture->sizeChanged = true;
-        if (window->drawable->composerTexture != nullptr) window->drawable->composerTexture->sizeChanged = true;
+        window->drawable->ahb = (AHardwareBuffer *)env->CallLongMethod(gpuImageObj, cache.gpuImageGetAHB);
+        window->drawable->stride = env->CallShortMethod(gpuImageObj, cache.gpuImageGetStride);
+        
+        window->drawable->drawableObj = env->NewGlobalRef(drawableObj);
+        window->drawable->gpuImageObj = env->NewGlobalRef(gpuImageObj);
+        
+        env->DeleteLocalRef(drawableObj);
+        env->DeleteLocalRef(gpuImageObj);
+        
+        if (window->drawable->glTexture != nullptr) 
+            window->drawable->glTexture->sizeChanged = true;
+        if (window->drawable->composerTexture != nullptr)
+            window->drawable->composerTexture->sizeChanged = true;
     }
     
     if (xserver.isDisplayX()) {
@@ -615,12 +645,18 @@ Java_com_winlator_cmod_widget_XServerView_nativeAddDirectContent(JNIEnv *env, jo
     drawable->width = env->GetShortField(drawableObj, cache.drawableWidth);
     drawable->height = env->GetShortField(drawableObj, cache.drawableHeight);
     drawable->data = nullptr;
-    drawable->format = env->GetIntField(drawableObj, cache.drawableFormat);
-    drawable->ahb = (AHardwareBuffer *)env->GetLongField(drawableObj, cache.drawableAHB);
-    drawable->stride = env->GetShortField(drawableObj, cache.drawableStride);
+    
+    jobject gpuImageObj = env->CallObjectMethod(drawableObj, cache.drawableGetGPUImage);
+    drawable->ahb = (AHardwareBuffer *)env->CallLongMethod(gpuImageObj, cache.gpuImageGetAHB);
+    drawable->stride = env->CallShortMethod(gpuImageObj, cache.gpuImageGetStride);
+    drawable->format = env->GetIntField(gpuImageObj, cache.gpuImageFormat);
+    
     drawable->isDirectContent = true;
     drawable->isDisplayX = false;
     drawable->drawableObj = env->NewGlobalRef(drawableObj);
+    drawable->gpuImageObj = env->NewGlobalRef(gpuImageObj);
+    
+    env->DeleteLocalRef(gpuImageObj);
     
     window->externalContent = nullptr;
     window->directContents[drawable->id] = std::move(drawable);

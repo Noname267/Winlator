@@ -16,7 +16,6 @@ import android.view.SurfaceView;
 import com.winlator.cmod.math.Mathf;
 import com.winlator.cmod.math.XForm;
 import com.winlator.cmod.renderer.GPUImage;
-import com.winlator.cmod.renderer.RenderableWindow;
 import com.winlator.cmod.renderer.ViewTransformation;
 import com.winlator.cmod.xserver.Bitmask;
 import com.winlator.cmod.xserver.Cursor;
