@@ -194,6 +194,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             case R.id.main_menu_shortcuts:
                 show(new ShortcutsFragment(), false);  // Forward animation
                 break;
+            case R.id.main_menu_file_manager:
+                show(new FileManagerFragment(), false);
+                break;
             case R.id.main_menu_containers:
                 show(new ContainersFragment(), false);  // Forward animation
                 break;
