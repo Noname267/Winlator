@@ -217,7 +217,7 @@ public class ShortcutsFragment extends Fragment {
 
     private void updateShortcutIcon(Uri sourceUri, Shortcut shortcut) {
         try {
-            Bitmap source = decodeSampledBitmap(sourceUri, 512);
+            Bitmap source = decodeSampledBitmap(sourceUri, 900);
             if (source == null) throw new IOException("Unsupported image");
 
             int size = Math.min(source.getWidth(), source.getHeight());
@@ -230,6 +230,16 @@ public class ShortcutsFragment extends Fragment {
             try (FileOutputStream fos = new FileOutputStream(new File(iconDir, iconName + ".png"))) {
                 iconBitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
             }
+
+            // The whole picture is also saved as the shortcut's cover art, so the grid tile shows it full-size
+            // (the square icon above is still used by the list view and pinned home-screen shortcuts).
+            Bitmap poster = source;
+            int longSide = Math.max(source.getWidth(), source.getHeight());
+            if (longSide > 1200) {
+                float scale = 1200f / longSide;
+                poster = Bitmap.createScaledBitmap(source, Math.round(source.getWidth() * scale), Math.round(source.getHeight() * scale), true);
+            }
+            shortcut.saveCustomCoverArt(poster);
 
             String uuid = shortcut.getExtra("uuid");
             if (!uuid.isEmpty()) {
