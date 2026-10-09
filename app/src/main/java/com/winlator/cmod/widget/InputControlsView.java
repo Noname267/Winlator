@@ -761,6 +761,43 @@ public class InputControlsView extends View {
         }
     }
 
+    public void handleStickInput(Binding firstBinding, float deltaX, float deltaY) {
+    if (!firstBinding.isGamepad() || profile == null) return;
+
+    GamepadState state = profile.getGamepadState();
+
+    boolean isLeftStick = firstBinding == Binding.GAMEPAD_LEFT_THUMB_UP ||
+                          firstBinding == Binding.GAMEPAD_LEFT_THUMB_DOWN ||
+                          firstBinding == Binding.GAMEPAD_LEFT_THUMB_LEFT ||
+                          firstBinding == Binding.GAMEPAD_LEFT_THUMB_RIGHT;
+    boolean isRightStick = firstBinding == Binding.GAMEPAD_RIGHT_THUMB_UP ||
+                           firstBinding == Binding.GAMEPAD_RIGHT_THUMB_DOWN ||
+                           firstBinding == Binding.GAMEPAD_RIGHT_THUMB_LEFT ||
+                           firstBinding == Binding.GAMEPAD_RIGHT_THUMB_RIGHT;
+    if (!isLeftStick && !isRightStick) return;
+
+    boolean changed;
+    if (isLeftStick) {
+        changed = Float.compare(state.thumbLX, deltaX) != 0 ||
+                  Float.compare(state.thumbLY, deltaY) != 0;
+        state.thumbLX = deltaX;
+        state.thumbLY = deltaY;
+    } else {
+        changed = Float.compare(state.thumbRX, deltaX) != 0 ||
+                  Float.compare(state.thumbRY, deltaY) != 0;
+        state.thumbRX = deltaX;
+        state.thumbRY = deltaY;
+    }
+    if (!changed) return;
+
+    WinHandler winHandler = xServer != null ? xServer.getWinHandler() : null;
+    if (winHandler != null) {
+        ExternalController controller = winHandler.getCurrentController();
+        if (controller != null) controller.state.copy(state);
+        winHandler.sendGamepadState();
+    }
+}
+    
     public Bitmap getIcon(byte id) {
         if (icons[id] == null) {
             Context context = getContext();
