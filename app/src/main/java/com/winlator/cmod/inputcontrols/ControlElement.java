@@ -25,7 +25,7 @@ import java.util.Arrays;
 public class ControlElement {
     public static final float STICK_DEAD_ZONE = 0.15f;
     public static final float DPAD_DEAD_ZONE = 0.3f;
-    public static final float STICK_SENSITIVITY = 3.0f;
+    public static final float STICK_SENSITIVITY = 2.0f;
     public static final float STICK_CROSS_ZONE = 0.3f;
     public static final float TRACKPAD_MIN_SPEED = 0.8f;
     public static final float TRACKPAD_MAX_SPEED = 20.0f;
@@ -664,19 +664,37 @@ public class ControlElement {
                 currentPosition.y = boundingBox.top + deltaY * radius + radius;
                 float adjDeltaX = (Math.abs(deltaX) < Math.abs(deltaY) * STICK_CROSS_ZONE) ? 0 : deltaX;
                 float adjDeltaY = (Math.abs(deltaY) < Math.abs(deltaX) * STICK_CROSS_ZONE) ? 0 : deltaY;
-                final boolean[] states = {adjDeltaY <= -STICK_DEAD_ZONE, adjDeltaX >= STICK_DEAD_ZONE, adjDeltaY >= STICK_DEAD_ZONE, adjDeltaX <= -STICK_DEAD_ZONE};
 
-                for (byte i = 0; i < 4; i++) {
-                    float value = i == 1 || i == 3 ? deltaX : deltaY;
-                    Binding binding = getBindingAt(i);
-                    if (binding.isGamepad()) {
-                        value = Mathf.clamp(Math.max(0, Math.abs(value) - 0.01f) * Mathf.sign(value) * STICK_SENSITIVITY, -1, 1);
-                        inputControlsView.handleInputEvent(binding, true, value);
-                        this.states[i] = true;
+                Binding firstBinding = getBindingAt(0);
+                if (isThumbstickBinding(firstBinding)) {
+                    float magnitude = (float)Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                    float finalX = 0;
+                    float finalY = 0;
+
+                    if (magnitude > STICK_DEAD_ZONE) {
+                        float scaledMagnitude = Math.min(Math.max(0, magnitude - 0.01f) * STICK_SENSITIVITY, 1.0f);
+                        finalX = (deltaX / magnitude) * scaledMagnitude;
+                        finalY = (deltaY / magnitude) * scaledMagnitude;
                     }
-                    else {
-                        boolean state = binding.isMouseMove() ? (states[i] || states[(i+2)%4]) : states[i];
-                        inputControlsView.handleInputEvent(binding, state, value);
+
+                    inputControlsView.handleStickInput(firstBinding, finalX, finalY);
+                    for (byte i = 0; i < 4; i++) this.states[i] = true;
+                }
+                else {
+                    final boolean up = adjDeltaY <= -STICK_DEAD_ZONE;
+                    final boolean right = adjDeltaX >= STICK_DEAD_ZONE;
+                    final boolean down = adjDeltaY >= STICK_DEAD_ZONE;
+                    final boolean left = adjDeltaX <= -STICK_DEAD_ZONE;
+
+                    for (byte i = 0; i < 4; i++) {
+                        float value = i == 1 || i == 3 ? adjDeltaX : adjDeltaY;
+                        Binding binding = getBindingAt(i);
+                        boolean direction = i == 0 ? up : i == 1 ? right : i == 2 ? down : left;
+                        boolean opposite = i == 0 ? down : i == 1 ? left : i == 2 ? up : right;
+                        boolean state = binding.isMouseMove() ? (direction || opposite) : direction;
+                        if (binding.isMouseMove() || this.states[i] != state) {
+                            inputControlsView.handleInputEvent(binding, state, value);
+                        }
                         this.states[i] = state;
                     }
                 }
@@ -770,9 +788,15 @@ public class ControlElement {
                 }
             }
             else if (type == Type.RANGE_BUTTON || type == Type.D_PAD || type == Type.STICK || type == Type.TRACKPAD) {
-                for (byte i = 0; i < states.length; i++) {
-                    if (states[i]) inputControlsView.handleInputEvent(getBindingAt(i), false);
-                    states[i] = false;
+                if (type == Type.STICK && isThumbstickBinding(getBindingAt(0))) {
+                    inputControlsView.handleStickInput(getBindingAt(0), 0f, 0f);
+                    for (byte i = 0; i < states.length; i++) states[i] = false;
+                }
+                else {
+                    for (byte i = 0; i < states.length; i++) {
+                        if (states[i]) inputControlsView.handleInputEvent(getBindingAt(i), false);
+                        states[i] = false;
+                    }
                 }
 
                 if (type == Type.RANGE_BUTTON) {
@@ -788,6 +812,13 @@ public class ControlElement {
             return true;
         }
         return false;
+    }
+
+    private boolean isThumbstickBinding(Binding b) {
+        return b == Binding.GAMEPAD_LEFT_THUMB_UP || b == Binding.GAMEPAD_LEFT_THUMB_DOWN ||
+               b == Binding.GAMEPAD_LEFT_THUMB_LEFT || b == Binding.GAMEPAD_LEFT_THUMB_RIGHT ||
+               b == Binding.GAMEPAD_RIGHT_THUMB_UP || b == Binding.GAMEPAD_RIGHT_THUMB_DOWN ||
+               b == Binding.GAMEPAD_RIGHT_THUMB_LEFT || b == Binding.GAMEPAD_RIGHT_THUMB_RIGHT;
     }
 
     public PointF getCurrentPosition() {
