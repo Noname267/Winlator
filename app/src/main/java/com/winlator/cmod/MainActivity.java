@@ -87,7 +87,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
 
         // Load the user's preferred theme
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
-        isDarkMode = sharedPreferences.getBoolean("dark_mode", false);
+        if (!sharedPreferences.contains("dark_mode")) {
+            sharedPreferences.edit().putBoolean("dark_mode", true).apply();
+        }
+
+        isDarkMode = sharedPreferences.getBoolean("dark_mode", true);
 
         // Apply the theme based on the preference
         if (isDarkMode) {
@@ -102,6 +106,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
         drawerLayout = findViewById(R.id.DrawerLayout);
         NavigationView navigationView = findViewById(R.id.NavigationView);
         navigationView.setNavigationItemSelectedListener(this);
+        navigationView.setBackgroundColor(Color.BLACK);
+        getWindow().setStatusBarColor(Color.BLACK);
+        getWindow().setNavigationBarColor(Color.BLACK);
 
         setSupportActionBar(findViewById(R.id.Toolbar));
         ActionBar actionBar = getSupportActionBar();
@@ -110,9 +117,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             actionBar.setHomeAsUpIndicator(R.drawable.icon_action_bar_menu);
         }
 
-        // Determine text color based on dark mode
-        int textColor = isDarkMode ? Color.WHITE : Color.BLACK;
-        setNavigationViewItemTextColor(navigationView, textColor);
+        setNavigationViewItemTextColor(navigationView, Color.WHITE);
 
         // Create Winlator folder if not present
         File winlatorDir = new File(SettingsFragment.DEFAULT_WINLATOR_PATH);
@@ -130,7 +135,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             navigationView.setCheckedItem(R.id.main_menu_input_controls);
         } else {
             int selectedMenuItemId = intent.getIntExtra("selected_menu_item_id", 0);
-            int menuItemId = selectedMenuItemId > 0 ? selectedMenuItemId : R.id.main_menu_shortcuts;
+            int menuItemId = selectedMenuItemId > 0 ? selectedMenuItemId : R.id.main_menu_containers;
 
             actionBar.setHomeAsUpIndicator(R.drawable.icon_action_bar_menu);
             onNavigationItemSelected(navigationView.getMenu().findItem(menuItemId));
