@@ -145,6 +145,14 @@ public class InputControlsView extends View {
         this.overlayOpacity = overlayOpacity;
     }
 
+    public void invalidateElement(Rect rect) {
+        if (rect == null) {
+            invalidate();
+            return;
+        }
+        invalidate(rect.left, rect.top, rect.right, rect.bottom);
+    }
+
     public int getSnappingSize() {
         return snappingSize;
     }
