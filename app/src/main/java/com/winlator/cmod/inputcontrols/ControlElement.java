@@ -23,10 +23,10 @@ import org.json.JSONObject;
 import java.util.Arrays;
 
 public class ControlElement {
-    public static final float STICK_DEAD_ZONE = 0.1f;
+    public static final float STICK_DEAD_ZONE = 0.15f;
     public static final float DPAD_DEAD_ZONE = 0.3f;
     public static final float STICK_SENSITIVITY = 2.0f;
-    public static final float STICK_CROSS_ZONE = 0.2f;
+    public static final float STICK_CROSS_ZONE = 0.3f;
     public static final float TRACKPAD_MIN_SPEED = 0.8f;
     public static final float TRACKPAD_MAX_SPEED = 20.0f;
     public static final byte TRACKPAD_ACCELERATION_THRESHOLD = 4;
@@ -672,9 +672,12 @@ public class ControlElement {
                     float finalY = 0;
 
                     if (magnitude > STICK_DEAD_ZONE) {
-                        float scaledMagnitude = Math.min((magnitude - STICK_DEAD_ZONE) / (1.0f - STICK_DEAD_ZONE), 1.0f);
-                        finalX = (deltaX / magnitude) * scaledMagnitude;
-                        finalY = (deltaY / magnitude) * scaledMagnitude;
+                        float normalizedX = deltaX / magnitude;
+                        float normalizedY = deltaY / magnitude;
+                        float scaledMagnitude = Math.max(0, magnitude - 0.01f) * STICK_SENSITIVITY;
+                        scaledMagnitude = Math.min(scaledMagnitude, 1.0f);
+                        finalX = normalizedX * scaledMagnitude;
+                        finalY = normalizedY * scaledMagnitude;
                     }
 
                     inputControlsView.handleStickInput(firstBinding, finalX, finalY);
