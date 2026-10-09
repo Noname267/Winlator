@@ -142,7 +142,7 @@ public class ShortcutsFragment extends Fragment {
     private void updateLayoutManager() {
         if (isGridView) {
             boolean isLandscape = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
-            recyclerView.setLayoutManager(new GridLayoutManager(getContext(), isLandscape ? 3 : 2));
+            recyclerView.setLayoutManager(new GridLayoutManager(getContext(), isLandscape ? 5 : 2));
             if (dividerItemDecoration != null) {
                 recyclerView.removeItemDecoration(dividerItemDecoration);
                 dividerItemDecoration = null;
