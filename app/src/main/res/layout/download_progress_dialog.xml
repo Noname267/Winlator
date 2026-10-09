@@ -5,7 +5,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:gravity="center"
     android:clickable="false"
-    android:focusable="false">
+    android:focusable="false"
+    android:background="#B3000000">
 
     <LinearLayout
         android:layout_width="wrap_content"
@@ -35,8 +36,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     app:trackThickness="10dp"
-                    app:trackColor="#bdbdbd"
-                    app:indicatorColor="@color/colorAccent"
+                    app:trackColor="#263241"
+                    app:indicatorColor="@color/colorPrimary"
                     app:indicatorSize="64dp"
                     android:layout_gravity="center" />
 
@@ -45,7 +46,8 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textSize="14dp"
-                    android:layout_gravity="center" />
+                    android:layout_gravity="center"
+                    android:textColor="@color/colorPrimary" />
             </FrameLayout>
 
             <TextView
@@ -53,7 +55,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="20dp"
-                android:textColor="@color/colorPrimaryDark"
+                android:textColor="#EAF1FF"
                 android:text="@string/downloading_file" />
         </LinearLayout>
 

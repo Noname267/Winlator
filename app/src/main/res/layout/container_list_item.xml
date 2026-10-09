@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:paddingLeft="16.0dip" android:paddingRight="16.0dip" android:layout_width="fill_parent" android:layout_height="wrap_content"
-    xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
-    <ImageView android:id="@id/ImageView" android:layout_width="36.0dip" android:layout_height="36.0dip" android:layout_marginTop="8.0dip" android:layout_marginRight="16.0dip" android:layout_marginBottom="8.0dip" app:tint="@color/colorPrimaryDark" />
-    <TextView android:ellipsize="end" android:gravity="center_vertical" android:id="@id/TVTitle" android:layout_width="0.0dip" android:layout_height="fill_parent" android:maxLines="1" android:layout_weight="1.0" />
+    xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="@drawable/ui_panel_bg">
+    <ImageView android:id="@id/ImageView" android:layout_width="36.0dip" android:layout_height="36.0dip" android:layout_marginTop="8.0dip" android:layout_marginRight="16.0dip" android:layout_marginBottom="8.0dip" app:tint="@color/colorAccent" />
+    <TextView android:ellipsize="end" android:gravity="center_vertical" android:id="@id/TVTitle" android:layout_width="0.0dip" android:layout_height="fill_parent" android:maxLines="1" android:layout_weight="1.0" android:textColor="#FFFFFF" />
     <LinearLayout android:orientation="horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content">
-        <ImageView android:id="@+id/BTRun" android:layout_marginRight="2.0dip" android:src="@drawable/icon_run" style="@style/LeftSideButton" />
-        <ImageView android:id="@id/BTMenu" android:layout_marginLeft="2.0dip" android:src="@drawable/icon_list_item_menu" style="@style/RightSideButton" />
+        <ImageView android:id="@+id/BTRun" android:layout_marginRight="2.0dip" android:src="@drawable/icon_run" style="@style/LeftSideButton" android:background="@drawable/ui_fab_blue" app:tint="#FFFFFF" />
+        <ImageView android:id="@id/BTMenu" android:layout_marginLeft="2.0dip" android:src="@drawable/icon_list_item_menu" style="@style/ListMenuButton" app:tint="#FFFFFF" />
     </LinearLayout>
 </LinearLayout>
 <!--
@@ -26,7 +27,7 @@
         android:layout_marginRight="16dp"
         android:layout_marginTop="8dp"
         android:layout_marginBottom="8dp"
-        app:tint="@color/colorPrimaryDark" />
+        app:tint="@color/colorAccent" />
 
     <TextView
         android:id="@+id/TVTitle"
@@ -35,7 +36,8 @@
         android:layout_weight="1"
         android:gravity="center_vertical"
         android:ellipsize="end"
-        android:maxLines="1" />
+        android:maxLines="1"
+        android:textColor="#FFFFFF" />
 
     <ImageButton
         style="@style/ListMenuButton"

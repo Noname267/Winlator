@@ -14,11 +14,12 @@
             android:text="@string/vkd3d_version" />
 
         <Spinner
-            style="@style/ComboBox"
+            style="@style/ComboBoxCompact"
             android:layout_width="match_parent"
             android:id="@+id/SVKD3DVersion"
             android:entries="@array/vkd3d_version_entries"
-            android:spinnerMode="dialog" />
+            android:spinnerMode="dialog"
+            android:background="@drawable/combo_box_no_arrow_dark" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -26,7 +27,7 @@
             android:text="@string/vkd3d_feature_level" />
 
         <Spinner
-            style="@style/ComboBox"
+            style="@style/ComboBoxCompact"
             android:layout_width="match_parent"
             android:id="@+id/SVKD3DFeatureLevel"
             android:spinnerMode="dialog" />
@@ -37,11 +38,12 @@
             android:text="@string/dxvk_version" />
 
         <Spinner
-            style="@style/ComboBox"
+            style="@style/ComboBoxCompact"
             android:layout_width="match_parent"
             android:id="@+id/SDXVKVersion"
             android:entries="@array/dxvk_version_entries"
-            android:spinnerMode="dialog"/>
+            android:spinnerMode="dialog"
+            android:background="@drawable/combo_box_no_arrow_dark"/>
 
         <LinearLayout
             android:id="@+id/LLAsync"
@@ -98,7 +100,7 @@
             android:text="@string/ddraw_wrapper" />
 
         <Spinner
-            style="@style/ComboBox"
+            style="@style/ComboBoxCompact"
             android:layout_width="match_parent"
             android:id="@+id/SDDRAWrapper"
             android:entries="@array/ddrawrapper_entries"
@@ -110,7 +112,7 @@
             android:text="@string/frame_rate" />
 
         <Spinner
-            style="@style/ComboBox"
+            style="@style/ComboBoxCompact"
             android:layout_width="match_parent"
             android:id="@+id/SFramerate"
             android:entries="@array/dxvk_framerate_entries"

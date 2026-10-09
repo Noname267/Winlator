@@ -16,7 +16,7 @@
             android:layout_width="match_parent"
             android:layout_height="?actionBarSize"
             android:id="@+id/Toolbar"
-            android:background="@color/colorPrimary"
+            android:background="#000000"
             app:layout_scrollFlags="enterAlways|scroll"
             app:title="@string/app_name"
             app:titleTextColor="#ffffff"
@@ -26,7 +26,8 @@
             android:id="@+id/FLFragmentContainer"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            app:layout_behavior="@string/appbar_scrolling_view_behavior"/>
+            app:layout_behavior="@string/appbar_scrolling_view_behavior"
+            android:background="#000000"/>
     </LinearLayout>
 
     <com.google.android.material.navigation.NavigationView
@@ -37,5 +38,8 @@
         android:fitsSystemWindows="true"
         app:headerLayout="@layout/main_menu_header"
         app:itemIconTint="@color/colorAccent"
-        app:menu="@menu/main_menu"/>
+        app:menu="@menu/main_menu"
+        android:background="#000000"
+        app:itemTextColor="@color/white"
+        app:itemBackground="@drawable/ui_nav_item_bg"/>
 </androidx.drawerlayout.widget.DrawerLayout>

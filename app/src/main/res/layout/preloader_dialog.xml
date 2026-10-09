@@ -4,7 +4,8 @@
     android:layout_height="match_parent"
     android:gravity="center"
     android:clickable="false"
-    android:focusable="false">
+    android:focusable="false"
+    android:background="#B3000000">
 
     <LinearLayout
         android:layout_width="wrap_content"
@@ -30,6 +31,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textSize="20dp"
-            android:textColor="@color/colorPrimaryDark" />
+            android:textColor="#EAF1FF" />
     </LinearLayout>
 </FrameLayout>

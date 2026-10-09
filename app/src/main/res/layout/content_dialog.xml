@@ -4,7 +4,8 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="16dp"
+    android:background="@drawable/dialog_background_dark_blue">
 
     <LinearLayout
         android:id="@+id/LLTitleBar"
@@ -31,7 +32,7 @@
                 android:id="@+id/TVTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/colorPrimary"
+                android:textColor="@color/colorAccent"
                 android:textStyle="bold"
                 android:textSize="18sp" />
         </LinearLayout>
@@ -87,7 +88,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:textColor="@color/colorPrimary"
+                android:textColor="@color/colorAccent"
                 android:textStyle="bold"
                 android:visibility="gone" />
 

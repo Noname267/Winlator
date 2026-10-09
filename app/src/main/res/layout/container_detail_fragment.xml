@@ -2,7 +2,8 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:background="#000000">
 
     <ScrollView
         android:layout_width="match_parent"
@@ -123,9 +124,10 @@
                     android:text="@string/wine_version" />
 
                 <Spinner
-                    style="@style/ComboBox"
+                    style="@style/ComboBoxCompact"
                     android:layout_width="match_parent"
-                    android:id="@+id/SWineVersion" />
+                    android:id="@+id/SWineVersion"
+                    android:background="@drawable/combo_box_no_arrow_dark" />
             </LinearLayout>
 
             <TextView
@@ -168,11 +170,12 @@
                 android:gravity="center_vertical">
 
                 <Spinner
-                    style="@style/ComboBox"
+                    style="@style/ComboBoxCompact"
                     android:layout_width="0dp"
                     android:layout_weight="1"
                     android:id="@+id/SGraphicsDriver"
-                    android:entries="@array/graphics_driver_entries" />
+                    android:entries="@array/graphics_driver_entries"
+                    android:background="@drawable/combo_box_no_arrow_dark" />
 
                 <ImageButton
                     style="@style/ListMenuButton"
@@ -204,10 +207,11 @@
 
                 <Spinner
                     android:id="@+id/SDXWrapper"
-                    style="@style/ComboBox"
+                    style="@style/ComboBoxCompact"
                     android:layout_width="0dp"
                     android:layout_weight="1"
-                    android:entries="@array/dxwrapper_entries" />
+                    android:entries="@array/dxwrapper_entries"
+                    android:background="@drawable/combo_box_no_arrow_dark" />
 
                 <ImageButton
                     style="@style/ListMenuButton"
@@ -311,7 +315,10 @@
                 android:layout_marginBottom="4dp"
                 android:background="@drawable/tab_layout_background"
                 app:tabGravity="center"
-                app:tabMode="auto">
+                app:tabMode="auto"
+                app:tabIndicatorColor="@color/colorAccent"
+                app:tabSelectedTextColor="@color/colorAccent"
+                app:tabTextColor="#B8C2D1">
 
                 <com.google.android.material.tabs.TabItem
                     android:layout_width="match_parent"
@@ -912,5 +919,8 @@
         android:layout_gravity="right|bottom"
         android:tint="#ffffff"
         android:src="@drawable/icon_confirm"
-        android:layout_margin="16dp" />
+        android:layout_margin="16dp"
+        app:backgroundTint="@color/colorAccent"
+        app:borderWidth="0dp"
+        app:elevation="0dp" />
 </FrameLayout>
