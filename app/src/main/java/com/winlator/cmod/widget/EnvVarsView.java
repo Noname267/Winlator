@@ -34,7 +34,7 @@ public class EnvVarsView extends FrameLayout {
         {"mesa_glthread", "CHECKBOX", "false", "true"},
         {"WINEESYNC", "CHECKBOX", "0", "1"},
         {"TU_DEBUG", "SELECT_MULTIPLE", "forcecb", "nocb", "startup", "nir", "nobin", "sysmem", "gmem", "forcebin", "layout", "noubwc", "nomultipos", "nolrz", "nolrzfc", "perf", "perfc", "flushall", "syncdraw", "push_consts_per_stage", "rast_order", "unaligned_store", "log_skip_gmem_ops", "dynamic", "bos", "3d_load", "fdm", "noconform", "rd"},
-        {"DXVK_HUD", "SELECT_MULTIPLE", "scale=0.5", "scale=0.7", "opacity=0.5", "opacity=0.7", "devinfo", "fps", "frametimes", "submissions", "drawcalls", "pipelines", "descriptors", "memory", "gpuload", "version", "api", "cs", "compiler", "samplers"},
+        {"DXVK_HUD", "SELECT_MULTIPLE", "none", "scale=0.5", "scale=0.7", "opacity=0.5", "opacity=0.7", "devinfo", "fps", "frametimes", "submissions", "drawcalls", "pipelines", "descriptors", "memory", "gpuload", "version", "api", "cs", "compiler", "samplers"},
         {"MESA_EXTENSION_MAX_YEAR", "TEXT"},
         {"WRAPPER_MAX_IMAGE_COUNT", "TEXT"},
         {"MESA_GL_VERSION_OVERRIDE", "TEXT"},
@@ -43,7 +43,12 @@ public class EnvVarsView extends FrameLayout {
         {"WINE_NEW_MEDIASOURCE", "CHECKBOX", "0", "1"},
         {"GALLIUM_HUD", "SELECT_MULTIPLE", "simple", "fps", "frametime"},
         {"WINE_LARGE_ADDRESS_AWARE", "CHECKBOX", "0", "1"},
-        {"WINEDLLOVERRIDES", "TEXT"}
+        {"WINEDLLOVERRIDES", "TEXT"},
+        {"DXVK_LOG_LEVEL", "SELECT", "none", "error", "warn", "info", "debug"},
+        {"DXVK_FRAME_RATE", "NUMBER"},
+        {"DXVK_CONFIG_FILE", "TEXT"},
+        {"DXVK_STATE_CACHE", "CHECKBOX", "0", "1"},
+        {"WRAPPER_NO_PATCH_OPCONSTCOMP", "CHECKBOX", "0", "1"}   
     };
     private final LinearLayout container;
     private final TextView emptyTextView;
