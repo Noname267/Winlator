@@ -93,7 +93,7 @@ class DisplayX {
                 }
                 
                 void removeWindow(Window *window) {
-                    if (window)
+                    if (!window)
                         return;
                         
                     auto it = mUpdatableWindows.find(window);

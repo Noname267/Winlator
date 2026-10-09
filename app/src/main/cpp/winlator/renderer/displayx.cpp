@@ -749,11 +749,8 @@ void DisplayX::destroyWindowControl(Window *window) {
     if (!window || !window->control)
         return;
     
-    {
-        auto lock = presentLock.lock();
-        presentRequests.removeWindow(window);
-    }
-    
+    auto lock = presentLock.lock();
+    presentRequests.removeWindow(window);
     pfnASurfaceControlRelease(window->control);
     window->control = nullptr;
 }
@@ -935,16 +932,9 @@ void DisplayX::destroyRootCursorControl() {
     pfnASurfaceTransactionDelete(cursorTransaction);
     
     auto rootCursor = cursorManager->getRootCursor();
-    if (!rootCursor) 
+    if (!rootCursor || !cursorManager->control)
         return;
     
-    if (rootCursor->image->ahb) {
-        AHardwareBuffer_release(rootCursor->image->ahb);
-        rootCursor->image->ahb = nullptr;
-    }
-    
-    if (!cursorManager->control)
-        return;
 
     pfnASurfaceControlRelease(cursorManager->control);
     cursorManager->control = nullptr;
