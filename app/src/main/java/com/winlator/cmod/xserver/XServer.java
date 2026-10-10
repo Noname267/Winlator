@@ -119,7 +119,6 @@ public class XServer {
     
     public void setMouseDisabled(boolean mouseDisabled) {
         this.disableMouse = mouseDisabled;
-        xServerView.setCursorVisible(!mouseDisabled);
     }
     
     public boolean isMouseDisabled() {
