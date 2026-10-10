@@ -285,6 +285,9 @@ public class ShortcutSettingsDialog extends ContentDialog {
         boolean isXInputDisabled = shortcut.getExtra("disableXinput", "0").equals("1");
         cbDisabledXInput.setChecked(isXInputDisabled);
 
+        final CheckBox cbDisableMouse = findViewById(R.id.CBDisableMouse);
+        cbDisableMouse.setChecked(shortcut.getExtra("disableMouse").equals("1"));
+
         final CheckBox cbSimTouchScreen = findViewById(R.id.CBTouchscreenMode);
         String isTouchScreenMode = shortcut.getExtra("simTouchScreen");
         cbSimTouchScreen.setChecked(isTouchScreenMode.equals("1") ? true : false);
@@ -397,6 +400,8 @@ public class ShortcutSettingsDialog extends ContentDialog {
 
             boolean disabledXInput = cbDisabledXInput.isChecked();
             shortcut.putExtra("disableXinput", disabledXInput ? "1" : null);
+
+            shortcut.putExtra("disableMouse", cbDisableMouse.isChecked() ? "1" : null);
 
             boolean touchscreenMode = cbSimTouchScreen.isChecked();
             shortcut.putExtra("simTouchScreen", touchscreenMode ? "1" : "0");
