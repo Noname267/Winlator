@@ -89,7 +89,7 @@ public class TouchpadView extends View {
             @Override
             public boolean onGenericMotion(View v, MotionEvent event) {
                 if (event.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS) {
-                    return handleStylusHoverEvent(event);
+                    return xServer.isMouseDisabled() || handleStylusHoverEvent(event);
                 }
                 return false;
             }
@@ -166,6 +166,8 @@ public class TouchpadView extends View {
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
+        if (xServer.isMouseDisabled() && !event.isFromSource(InputDevice.SOURCE_MOUSE)) return true;
+
         boolean isTouchscreenMode = preferences.getBoolean("touchscreen_toggle", false);
 
         // Reset the timeout timer to keep controls visible
