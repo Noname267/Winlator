@@ -408,14 +408,9 @@ public class FileManagerFragment extends Fragment {
     private void runFileDirectly(File file, Container container) {
         try {
             File tempShortcut = new File(getContext().getCacheDir(), "temp_run.desktop");
-            String winePrefix = getContainerWineHome(container) + "/.wine";
 
             try (PrintWriter writer = new PrintWriter(new FileWriter(tempShortcut))) {
-                writer.println("[Desktop Entry]");
-                writer.println("Name=" + file.getName());
-                writer.println("Exec=env WINEPREFIX=\"" + winePrefix + "\" wine \"" + file.getAbsolutePath() + "\"");
-                writer.println("Type=Application");
-                writer.println("container_id:" + container.id);
+                writeDesktopEntry(writer, file.getName(), toDesktopWindowsPath(file, container), null, null, container);
             }
 
             Intent intent = new Intent();
@@ -433,19 +428,12 @@ public class FileManagerFragment extends Fragment {
     private void createShortcutDirectly(File file, Container container) {
         try {
             String displayName = getSmartDisplayName(file);
-            String unixPath = file.getAbsolutePath();
-            String winePrefix = getContainerWineHome(container) + "/.wine";
             File shortcutsDir = container.getDesktopDir();
             if (!shortcutsDir.exists()) shortcutsDir.mkdirs();
             File desktopFile = new File(shortcutsDir, displayName + ".desktop");
 
             try (PrintWriter writer = new PrintWriter(new FileWriter(desktopFile))) {
-                writer.println("[Desktop Entry]");
-                writer.println("Name=" + displayName);
-                writer.println("Exec=env WINEPREFIX=\"" + winePrefix + "\" wine \"" + unixPath + "\"");
-                writer.println("Type=Application");
-                writer.println("Icon=" + displayName);
-                writer.println("container_id:" + container.id);
+                writeDesktopEntry(writer, displayName, toDesktopWindowsPath(file, container), null, displayName, container);
             }
             Toast.makeText(getContext(), "Shortcut created!", Toast.LENGTH_SHORT).show();
 
