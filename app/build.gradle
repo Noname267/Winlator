@@ -123,7 +123,6 @@ android {
     buildToolsVersion "35.0.0"
 
     defaultConfig {
-        applicationId "com.winlator.cmod"
         minSdkVersion 28
         // We’re preserving Winlator’s request to keep targetSdkVersion at 28
         targetSdkVersion 28
@@ -144,6 +143,18 @@ android {
         }
     }
 
+
+    flavorDimensions "pkg"
+    productFlavors {
+        antutu {
+            dimension "pkg"
+            applicationId "com.antutu.ABenchMark"
+        }
+        ludashi {
+            dimension "pkg"
+            applicationId "com.ludashi.benchmark"
+        }
+    }
 
     // Java versions: Winlator uses Java 17, Termux-X11 used 1.9
     // Using 17 is typically fine (covers 1.9 features).
