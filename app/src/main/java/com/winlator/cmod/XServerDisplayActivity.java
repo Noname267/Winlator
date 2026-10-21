@@ -369,6 +369,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         if (isDarkMode) {
             navigationView.setItemTextColor(ContextCompat.getColorStateList(this, R.color.white));
             navigationView.setBackgroundResource(R.color.content_dialog_background_dark);
+            navigationView.getHeaderView(0).setBackgroundResource(R.color.colorPrimaryDarkModeDark);
         }
 
         boolean enableLogs = preferences.getBoolean("enable_wine_debug", false) || preferences.getBoolean("enable_box64_logs", false);
@@ -1368,7 +1369,22 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                 profileItems.add(profile.getName());
             }
 
-            sProfile.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, profileItems));
+            sProfile.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, profileItems) {
+                @NonNull
+                @Override
+                public View getView(int position, View convertView, @NonNull ViewGroup parent) {
+                    View itemView = super.getView(position, convertView, parent);
+                    if (isDarkMode) ((TextView) itemView).setTextColor(textColor);
+                    return itemView;
+                }
+
+                @Override
+                public View getDropDownView(int position, View convertView, @NonNull ViewGroup parent) {
+                    View itemView = super.getDropDownView(position, convertView, parent);
+                    if (isDarkMode) ((TextView) itemView).setTextColor(textColor);
+                    return itemView;
+                }
+            });
             sProfile.setSelection(selectedPosition);
         };
         loadProfileSpinner.run();
@@ -1752,8 +1768,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             Log.d(TAG, "Extracting nglide wrapper");
             TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "ddrawrapper/nglide.tzst", windowsDir, onExtractFileListener);
-            
-            if (ddrawrapper.contains("none")) {
+
+            if (ddrawrapper.contains("None")) {
                 Log.d(TAG, "No DDRaw wrapper has been selected, restoring original ddraw files");
                 restoreOriginalDllFiles(new String[]{ "ddraw.dll", "d3dimm.dll" });
             }
