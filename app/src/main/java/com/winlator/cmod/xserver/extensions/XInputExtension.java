@@ -137,7 +137,7 @@ public class XInputExtension implements Extension, Pointer.OnPointerMotionListen
 
     // Relative mouse movement goes through WinHandler, raw events would move the cursor twice
     private boolean isRawInputActive() {
-        return !xServer.isRelativeMouseMovement() && !xServer.isMouseDisabled();
+        return !xServer.isRelativeMouseMovement();
     }
 
     public void sendRawMotion(int dx, int dy) {

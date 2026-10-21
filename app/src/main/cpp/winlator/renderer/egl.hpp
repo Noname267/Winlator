@@ -11,6 +11,8 @@
 #include <queue>
 #include <cmath>
 #include <condition_variable>
+#include <chrono>
+#include <atomic>
 
 #include "shader.hpp"
 #include "renderer_jni.hpp"
@@ -82,6 +84,8 @@ class EGLRenderer {
         
         std::atomic_bool stopped{false};
         std::atomic_bool requestUpdate{false};
+        std::atomic_bool pointerOnlyUpdate{false};
+        std::chrono::steady_clock::time_point lastFrameTime{};
         
         void renderingThreadLoop();
         void renderDrawable(Drawable *drawable, int x, int y, bool isWindow);
@@ -122,6 +126,8 @@ class EGLRenderer {
         void updateWindowPosition(Window *window);
         void queueEvent(std::function<void()> func);
         void requestRenderer();
+        void requestPointerRenderer();
+        bool pointerAffectsFrame() const;
         void destroyTexture(GLTexture *texture);
         void destroySurface();
         void createSurface(ANativeWindow *window);

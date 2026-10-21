@@ -15,6 +15,28 @@ void EGLRenderer::queueEvent(std::function<void()> func) {
 
 void EGLRenderer::requestRenderer() {
     auto lock = renderLock.lock();
+    pointerOnlyUpdate = false;
+    requestUpdate = true;
+    renderLock.notify();
+}
+
+bool EGLRenderer::pointerAffectsFrame() const {
+    if (cursorVisible)
+        return true;
+
+    if (screenOffsetYRelativeToCursor)
+        return true;
+
+    return magnifierEnabled && magnifierZoom != 1.0f;
+}
+
+void EGLRenderer::requestPointerRenderer() {
+    if (!pointerAffectsFrame())
+        return;
+
+    auto lock = renderLock.lock();
+    if (!requestUpdate)
+        pointerOnlyUpdate = true;
     requestUpdate = true;
     renderLock.notify();
 }
@@ -78,6 +100,7 @@ void EGLRenderer::renderingThreadLoop() {
     while (true) {
         std::function<void()> func = nullptr;
         bool requestRender = false;
+        bool pointerOnly = false;
         bool sizeChanged = false;
         
         auto lock = renderLock.lock();
@@ -167,6 +190,8 @@ void EGLRenderer::renderingThreadLoop() {
                 createEGLSurface = true;
                 
             requestRender = requestUpdate;
+            pointerOnly = pointerOnlyUpdate;
+            pointerOnlyUpdate = false;
             requestUpdate = false;
         }
         
@@ -193,7 +218,19 @@ void EGLRenderer::renderingThreadLoop() {
         }
         
         if (requestRender) {
+            if (pointerOnly && !sizeChanged) {
+                constexpr auto minPointerFrameGap = std::chrono::milliseconds(16);
+                auto nextFrameTime = lastFrameTime + minPointerFrameGap;
+                if (std::chrono::steady_clock::now() < nextFrameTime) {
+                    auto waitLock = renderLock.lock();
+                    renderLock.cv.wait_until(waitLock, nextFrameTime, [&]{
+                        return stopped || state != State::NONE || !eventQueue.empty() || (requestUpdate && !pointerOnlyUpdate);
+                    });
+                }
+            }
+
             EGLBoolean ret = drawFrame();
+            lastFrameTime = std::chrono::steady_clock::now();
             if (ret == EGL_FALSE) {
                 printf("Failed to draw frame");
                 
