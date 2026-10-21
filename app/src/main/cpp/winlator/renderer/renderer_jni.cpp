@@ -410,11 +410,14 @@ Java_com_winlator_cmod_widget_XServerView_nativeBindCursor(JNIEnv *env, jobject 
 
 extern "C" JNIEXPORT void JNICALL
 Java_com_winlator_cmod_widget_XServerView_nativePointerMove(jint posX, jint posY) {
+    if (cursorManager.pointer.posX == posX && cursorManager.pointer.posY == posY)
+        return;
+
     cursorManager.pointer.posX = posX;
     cursorManager.pointer.posY = posY;
     
     if (!xserver.isDisplayX())
-        renderer.requestRenderer();
+        renderer.requestPointerRenderer();
     else 
         displayX.requestCursorUpdate();
 }    
