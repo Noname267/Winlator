@@ -2,9 +2,12 @@ package com.winlator.cmod.core;
 
 import android.app.Activity;
 import android.app.Dialog;
+import android.content.SharedPreferences;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.TextView;
+
+import androidx.preference.PreferenceManager;
 
 import com.winlator.cmod.R;
 
@@ -23,6 +26,11 @@ public class PreloaderDialog {
         dialog.setCancelable(false);
         dialog.setCanceledOnTouchOutside(false);
         dialog.setContentView(R.layout.preloader_dialog);
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(activity);
+        if (preferences.getBoolean("dark_mode", false)) {
+            dialog.findViewById(R.id.LLContainer).setBackgroundResource(R.drawable.preloader_background_dark);
+            ((TextView)dialog.findViewById(R.id.TextView)).setTextColor(0xFFECEFF1);
+        }
 
         Window window = dialog.getWindow();
         if (window != null) {
