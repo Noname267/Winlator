@@ -1294,6 +1294,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
             String simTouchScreen = shortcut.getExtra("simTouchScreen");
             touchpadView.setSimTouchScreen(simTouchScreen.equals("1"));
+
+            xServer.setMouseDisabled(shortcut.getExtra("disableTouchMouse").equals("1"));
         }
 
         AppUtils.observeSoftKeyboardVisibility(drawerLayout, xServerView::setScreenOffsetYRelativeToCursor);
