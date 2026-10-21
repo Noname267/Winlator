@@ -354,7 +354,7 @@ public class ShortcutsFragment extends Fragment {
         return file.getPath() + "@" + file.lastModified();
     }
 
-    private void showFileInto(ImageView imageView, File file, boolean grid, Shortcut item, String tag) {
+    private void showFileInto(ImageView imageView, File file, boolean grid, Shortcut item, String tag, boolean custom) {
         String key = cacheKey(file);
         Bitmap cached = bitmapCache.get(key);
         if (cached != null) {
@@ -362,7 +362,11 @@ public class ShortcutsFragment extends Fragment {
             imageView.setImageBitmap(cached);
             return;
         }
-        showFallback(imageView, item, grid);
+        if (custom) {
+            imageView.setImageDrawable(null);
+        } else {
+            showFallback(imageView, item, grid);
+        }
         imageExecutor.execute(() -> {
             Bitmap bitmap = decodeSampled(file, MAX_ICON_WIDTH, MAX_ICON_HEIGHT);
             if (bitmap == null) return;
@@ -391,11 +395,11 @@ public class ShortcutsFragment extends Fragment {
         File autoFile = new File(getImagesDir(grid), baseName + ".png");
 
         if (userIcon.exists()) {
-            showFileInto(imageView, userIcon, grid, item, tag);
+            showFileInto(imageView, userIcon, grid, item, tag, true);
             return;
         }
         if (autoFile.exists()) {
-            showFileInto(imageView, autoFile, grid, item, tag);
+            showFileInto(imageView, autoFile, grid, item, tag, false);
             return;
         }
 
@@ -405,7 +409,7 @@ public class ShortcutsFragment extends Fragment {
         if (exeFile == null || !pendingExtractions.add(autoFile.getPath())) return;
         ExeIconExtractor.extractAsync(exeFile, autoFile, grid, () -> mainHandler.post(() -> {
             pendingExtractions.remove(autoFile.getPath());
-            if (autoFile.exists() && tag.equals(imageView.getTag())) showFileInto(imageView, autoFile, grid, item, tag);
+            if (autoFile.exists() && tag.equals(imageView.getTag())) showFileInto(imageView, autoFile, grid, item, tag, false);
         }));
     }
 
