@@ -34,11 +34,11 @@ public class Pointer {
     }
 
     public void setX(int x) {
-        if (!xServer.isMouseDisabled()) this.x = (short)x;
+        this.x = (short)x;
     }
 
     public void setY(int y) {
-        if (!xServer.isMouseDisabled()) this.y = (short)y;
+        this.y = (short)y;
     }
 
     public short getX() {
@@ -58,9 +58,6 @@ public class Pointer {
     }
 
     public void setPosition(int x, int y) {
-        if (xServer.isMouseDisabled())
-            return;
-            
         setX(x);
         setY(y);
         triggerOnPointerMove(this.x, this.y);
@@ -71,9 +68,6 @@ public class Pointer {
     }
 
     public void setButton(Button button, boolean pressed) {
-        if (xServer.isMouseDisabled())
-            return;
-            
         boolean oldPressed = isButtonPressed(button);
         buttonMask.set(button.flag(), pressed);
         if (oldPressed != pressed) {
