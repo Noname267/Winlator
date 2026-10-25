@@ -227,6 +227,7 @@ public class InputControlsManager {
             int profileId = 0;
             String profileName = null;
             float cursorSpeed = Float.NaN;
+            int themeColor = 0;
             int fieldsRead = 0;
 
             reader.beginObject();
@@ -245,6 +246,9 @@ public class InputControlsManager {
                     cursorSpeed = (float) reader.nextDouble();
                     fieldsRead++;
                 }
+                else if (name.equals("themeColor")) {
+                    themeColor = reader.nextInt();
+                }
                 else {
                     if (fieldsRead == 3) break;
                     reader.skipValue();
@@ -254,6 +258,7 @@ public class InputControlsManager {
             ControlsProfile profile = new ControlsProfile(context, profileId);
             profile.setName(profileName);
             profile.setCursorSpeed(cursorSpeed);
+            profile.setThemeColor(themeColor);
             return profile;
         }
         catch (IOException e) {

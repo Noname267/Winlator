@@ -2,6 +2,10 @@ package com.winlator.cmod.inputcontrols;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffColorFilter;
+import android.graphics.ColorFilter;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PointF;
@@ -71,6 +75,11 @@ public class ControlElement {
     private Shape shape = Shape.CIRCLE;
     private Binding[] bindings = {Binding.NONE, Binding.NONE, Binding.NONE, Binding.NONE};
     private float scale = 1.0f;
+    private float opacity = 1.0f;
+    private int customColor = 0;
+    private ColorFilter iconColorFilter = null;
+    private int iconColorFilterColor = 0;
+    private Paint iconPaint = null;
     private short x;
     private short y;
     private boolean selected = false;
@@ -189,6 +198,48 @@ public class ControlElement {
 
     public void setBinding(Binding binding) {
         Arrays.fill(bindings, binding);
+    }
+
+    public float getOpacity() {
+        return opacity;
+    }
+
+    public void setOpacity(float opacity) {
+        this.opacity = Math.max(0.0f, Math.min(1.0f, opacity));
+    }
+
+    public int getCustomColor() {
+        return customColor;
+    }
+
+    public void setCustomColor(int customColor) {
+        this.customColor = customColor;
+    }
+
+    public boolean hasCustomColor() {
+        return customColor != 0;
+    }
+
+    private int getBaseColor() {
+        if (customColor != 0) return customColor | 0xff000000;
+        ControlsProfile profile = inputControlsView.getProfile();
+        int themeColor = profile != null ? profile.getThemeColor() : 0;
+        return themeColor != 0 ? (themeColor | 0xff000000) : 0xffffffff;
+    }
+
+    private int getPrimaryColor() {
+        int alpha = (int)(Color.alpha(inputControlsView.getPrimaryColor()) * opacity);
+        return (getBaseColor() & 0x00ffffff) | ((alpha & 0xff) << 24);
+    }
+
+    private ColorFilter getIconColorFilter() {
+        int baseColor = getBaseColor();
+        if (baseColor == 0xffffffff) return inputControlsView.getColorFilter();
+        if (iconColorFilter == null || iconColorFilterColor != baseColor) {
+            iconColorFilter = new PorterDuffColorFilter(baseColor, PorterDuff.Mode.SRC_IN);
+            iconColorFilterColor = baseColor;
+        }
+        return iconColorFilter;
     }
 
     public float getScale() {
@@ -348,7 +399,7 @@ public class ControlElement {
     public void draw(Canvas canvas) {
         int snappingSize = inputControlsView.getSnappingSize();
         Paint paint = inputControlsView.getPaint();
-        int primaryColor = inputControlsView.getPrimaryColor();
+        int primaryColor = getPrimaryColor();
 
         paint.setColor(selected ? inputControlsView.getSecondaryColor() : primaryColor);
         paint.setStyle(Paint.Style.STROKE);
@@ -525,7 +576,7 @@ public class ControlElement {
 
                 short thumbRadius = (short) (snappingSize * 3.5f * scale); // Radius of the thumbstick
                 paint.setStyle(Paint.Style.FILL);
-                paint.setColor(ColorUtils.setAlphaComponent(primaryColor, 50)); // Semi-transparent fill for thumbstick
+                paint.setColor(ColorUtils.setAlphaComponent(primaryColor, (int)(50 * opacity))); // Semi-transparent fill for thumbstick
                 canvas.drawCircle(thumbstickX, thumbstickY, thumbRadius, paint); // Draw thumbstick
 
                 // Draw the thumbstick border
@@ -550,16 +601,17 @@ public class ControlElement {
     }
 
     private void drawIcon(Canvas canvas, float cx, float cy, float width, float height, int iconId) {
-        Paint paint = inputControlsView.getPaint();
+        if (iconPaint == null) iconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        Paint paint = iconPaint;
         Bitmap icon = inputControlsView.getIcon((byte)iconId);
-        paint.setColorFilter(inputControlsView.getColorFilter());
+        paint.setColorFilter(getIconColorFilter());
+        paint.setAlpha(Color.alpha(selected ? inputControlsView.getSecondaryColor() : getPrimaryColor()));
         int margin = (int)(inputControlsView.getSnappingSize() * (shape == Shape.CIRCLE || shape == Shape.SQUARE ? 2.0f : 1.0f) * scale);
         int halfSize = (int)((Math.min(width, height) - margin) * 0.5f);
 
         Rect srcRect = new Rect(0, 0, icon.getWidth(), icon.getHeight());
         Rect dstRect = new Rect((int)(cx - halfSize), (int)(cy - halfSize), (int)(cx + halfSize), (int)(cy + halfSize));
         canvas.drawBitmap(icon, srcRect, dstRect, paint);
-        paint.setColorFilter(null);
     }
 
     public JSONObject toJSONObject() {
@@ -578,6 +630,8 @@ public class ControlElement {
             elementJSONObject.put("toggleSwitch", toggleSwitch);
             elementJSONObject.put("text", text);
             elementJSONObject.put("iconId", iconId);
+            if (opacity != 1.0f) elementJSONObject.put("opacity", Float.valueOf(opacity));
+            if (customColor != 0) elementJSONObject.put("customColor", customColor);
 
             if (type == Type.RANGE_BUTTON && range != null) {
                 elementJSONObject.put("range", range.name());
