@@ -487,6 +487,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
                 text.equalsIgnoreCase("vkBasalt") ||
                 text.equalsIgnoreCase("Builtin Decoder") ||
                 text.equalsIgnoreCase("Box64") ||
+                text.equalsIgnoreCase("FEXCore") ||
                 text.equalsIgnoreCase("Input Controls") ||
                 text.equalsIgnoreCase("Game Controller") ||
                 text.equalsIgnoreCase("System");
