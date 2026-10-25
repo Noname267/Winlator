@@ -121,7 +121,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
         }
         else {
             vDisplayDriverConfig.setVisibility(View.VISIBLE);
-            vDisplayDriverConfig.setOnClickListener((v) -> (new EGLConfigDialog(vDisplayDriverConfig)).show());
+            vDisplayDriverConfig.setOnClickListener((v) -> (new EGLConfigDialog(vDisplayDriverConfig, StringUtils.parseIdentifier(currentDisplayDriver))).show());
             vDisplayDriverConfig.setTag(shortcut.getExtra("eglConfig", shortcut.container.getEGLConfig()));
         }
         
@@ -137,7 +137,7 @@ public class ShortcutSettingsDialog extends ContentDialog {
                 }
                 else {
                     vDisplayDriverConfig.setVisibility(View.VISIBLE);
-                    vDisplayDriverConfig.setOnClickListener((v) -> (new EGLConfigDialog(vDisplayDriverConfig)).show());
+                    vDisplayDriverConfig.setOnClickListener((v) -> (new EGLConfigDialog(vDisplayDriverConfig, identifier)).show());
                     vDisplayDriverConfig.setTag(shortcut.getExtra("eglConfig", EGLConfigDialog.DEFAULT_CONFIG));
                 }
             }

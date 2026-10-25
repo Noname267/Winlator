@@ -14,23 +14,32 @@ public class EGLConfigDialog extends ContentDialog {
     private Context context;
     
     public EGLConfigDialog(View anchor) {
+        this(anchor, "egl");
+    }
+
+    public EGLConfigDialog(View anchor, String displayDriver) {
         super(anchor.getContext(), R.layout.egl_config_dialog);
         context = anchor.getContext();
         setIcon(R.drawable.icon_settings);
-        setTitle("EGL " + context.getString(R.string.configuration));
+        setTitle(("vulkan".equalsIgnoreCase(displayDriver) ? "Vulkan " : "EGL ") + context.getString(R.string.configuration));
        
         final Spinner sSurfaceFormat = findViewById(R.id.SSurfaceFormat);
         final Spinner sTextureFilter = findViewById(R.id.STextureFilter);
+        final Spinner sPresentMode = findViewById(R.id.SPresentMode);
+        final boolean isVulkan = "vulkan".equalsIgnoreCase(displayDriver);
+        findViewById(R.id.GroupPresentMode).setVisibility(isVulkan ? View.VISIBLE : View.GONE);
         
         String tag = anchor.getTag().toString();
         KeyValueSet config = parseConfig(anchor.getTag());
         
         AppUtils.setSpinnerSelectionFromIdentifier(sSurfaceFormat, config.get("surfaceFormat"));
         AppUtils.setSpinnerSelectionFromIdentifier(sTextureFilter, config.get("textureFilter"));
+        AppUtils.setSpinnerSelectionFromIdentifier(sPresentMode, config.get("presentMode", "fifo"));
         
         setOnConfirmCallback(() -> {
             config.put("surfaceFormat", sSurfaceFormat.getSelectedItem().toString());
             config.put("textureFilter", sTextureFilter.getSelectedItem().toString());
+            if (isVulkan) config.put("presentMode", sPresentMode.getSelectedItem().toString());
             anchor.setTag(config.toString());
         });
     }
