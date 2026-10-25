@@ -130,7 +130,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             navigationView.setCheckedItem(R.id.main_menu_input_controls);
         } else {
             int selectedMenuItemId = intent.getIntExtra("selected_menu_item_id", 0);
-            int menuItemId = selectedMenuItemId > 0 ? selectedMenuItemId : R.id.main_menu_containers;
+            int menuItemId = selectedMenuItemId > 0 ? selectedMenuItemId : R.id.main_menu_shortcuts;
 
             actionBar.setHomeAsUpIndicator(R.drawable.icon_action_bar_menu);
             onNavigationItemSelected(navigationView.getMenu().findItem(menuItemId));
@@ -199,6 +199,9 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
                 break;
             case R.id.main_menu_input_controls:
                 show(new InputControlsFragment(selectedProfileId), false);  // Forward animation
+                break;
+            case R.id.main_menu_file_manager:
+                show(new FileManagerFragment(), false);
                 break;
             case R.id.main_menu_contents:
                 show(new ContentsFragment(), false);  // Forward animation
