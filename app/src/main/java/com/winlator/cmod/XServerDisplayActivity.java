@@ -1216,6 +1216,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         if (xServer.isVulkan()) {
             VulkanXServerView.loadNativeLibrary();
             xServerView = new VulkanXServerView(this, xServer);
+            ((VulkanXServerView) xServerView).setVkPresentMode("mailbox".equals(displayConfig.get("presentMode")) ? 1 : 2);
         } else {
             xServerView = new XServerView(this, xServer);
         }

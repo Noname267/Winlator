@@ -1,6 +1,8 @@
 package com.winlator.cmod;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -19,6 +21,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -41,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class FileManagerFragment extends Fragment {
@@ -752,6 +756,48 @@ public class FileManagerFragment extends Fragment {
         return name;
     }
 
+    private File getFileIconCacheFile(File file) {
+        File cacheDir = new File(requireContext().getCacheDir(), "file-manager-icons");
+        if (!cacheDir.exists()) cacheDir.mkdirs();
+        String key = Integer.toHexString(file.getAbsolutePath().hashCode()) + "-" + file.length() + "-" + file.lastModified();
+        return new File(cacheDir, key + ".png");
+    }
+
+    private void setDefaultFileIcon(ImageView iconView, int drawableRes) {
+        iconView.setTag(null);
+        iconView.setImageResource(drawableRes);
+        iconView.setImageTintList(ContextCompat.getColorStateList(requireContext(), R.color.colorAccent));
+    }
+
+    private void bindExecutableIcon(File file, ImageView iconView) {
+        final String boundPath = file.getAbsolutePath();
+        iconView.setTag(boundPath);
+        File cachedIcon = getFileIconCacheFile(file);
+        if (cachedIcon.exists()) {
+            Bitmap bitmap = BitmapFactory.decodeFile(cachedIcon.getAbsolutePath());
+            if (bitmap != null) {
+                iconView.setImageTintList(null);
+                iconView.setImageBitmap(bitmap);
+                return;
+            }
+        }
+
+        iconView.setImageResource(R.drawable.icon_wine);
+        iconView.setImageTintList(ContextCompat.getColorStateList(requireContext(), R.color.colorAccent));
+        if (!file.getName().toLowerCase(Locale.ENGLISH).endsWith(".exe")) return;
+
+        ExeIconExtractor.extractAsync(file, cachedIcon, false, () ->
+                new Handler(Looper.getMainLooper()).post(() -> {
+                    if (!isAdded() || !boundPath.equals(iconView.getTag())) return;
+                    Bitmap bitmap = BitmapFactory.decodeFile(cachedIcon.getAbsolutePath());
+                    if (bitmap != null) {
+                        iconView.setImageTintList(null);
+                        iconView.setImageBitmap(bitmap);
+                    }
+                })
+        );
+    }
+
     private class FileAdapter extends RecyclerView.Adapter<FileAdapter.ViewHolder> {
         private final List<File> files;
         public FileAdapter(List<File> files) { this.files = files; }
@@ -767,7 +813,7 @@ public class FileManagerFragment extends Fragment {
             File file = files.get(position);
             holder.tvName.setText(file.getName());
             if (file.isDirectory()) {
-                holder.ivIcon.setImageResource(R.drawable.icon_open);
+                setDefaultFileIcon(holder.ivIcon, R.drawable.icon_open);
                 holder.tvDetails.setText("Folder");
                 holder.btMenu.setVisibility(View.VISIBLE);
                 holder.btMenu.setImageResource(android.R.drawable.ic_menu_more);
@@ -776,8 +822,8 @@ public class FileManagerFragment extends Fragment {
             } else {
                 holder.tvDetails.setText(formatSize(file.length()));
                 boolean isExe = isExecutable(file);
-                if (isExe) holder.ivIcon.setImageResource(R.drawable.icon_wine);
-                else holder.ivIcon.setImageResource(android.R.drawable.ic_menu_agenda);
+                if (isExe) bindExecutableIcon(file, holder.ivIcon);
+                else setDefaultFileIcon(holder.ivIcon, android.R.drawable.ic_menu_agenda);
                 holder.btMenu.setVisibility(View.VISIBLE);
                 holder.btMenu.setImageResource(android.R.drawable.ic_menu_more);
                 holder.btMenu.setOnClickListener(v -> showFileOptions(file, holder.btMenu));

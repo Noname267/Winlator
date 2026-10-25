@@ -343,7 +343,7 @@ public class ContainerDetailFragment extends Fragment {
         }
         else {
             vDisplayDriverConfig.setVisibility(View.VISIBLE);
-            vDisplayDriverConfig.setOnClickListener((v) -> (new EGLConfigDialog(vDisplayDriverConfig)).show());
+            vDisplayDriverConfig.setOnClickListener((v) -> (new EGLConfigDialog(vDisplayDriverConfig, displayDriver)).show());
             vDisplayDriverConfig.setTag(isEditMode() ? container.getEGLConfig() : EGLConfigDialog.DEFAULT_CONFIG);
         }
         
@@ -360,7 +360,7 @@ public class ContainerDetailFragment extends Fragment {
                 }
                 else {
                     vDisplayDriverConfig.setVisibility(View.VISIBLE);
-                    vDisplayDriverConfig.setOnClickListener((v) -> (new EGLConfigDialog(vDisplayDriverConfig)).show());
+                    vDisplayDriverConfig.setOnClickListener((v) -> (new EGLConfigDialog(vDisplayDriverConfig, identifier)).show());
                     vDisplayDriverConfig.setTag(isEditMode() ? container.getEGLConfig() : EGLConfigDialog.DEFAULT_CONFIG);
                 }
             }
