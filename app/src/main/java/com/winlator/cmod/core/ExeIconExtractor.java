@@ -304,29 +304,39 @@ public class ExeIconExtractor {
                 for (int i = 0; i < numSections; i++) {
                     byte[] nm = new byte[8];
                     raf.readFully(nm);
-                    String secName = new String(nm).trim().replace("\0", "");
-                    raf.skipBytes(4);
-                    long vAddr  = readLE32(raf) & 0xFFFFFFFFL;
-                    raf.skipBytes(4);
+                    String secName = new String(nm, java.nio.charset.StandardCharsets.US_ASCII).replace("\0", "").trim();
+                    long virtualSize = readLE32(raf) & 0xFFFFFFFFL;
+                    long vAddr = readLE32(raf) & 0xFFFFFFFFL;
+                    long rawSize = readLE32(raf) & 0xFFFFFFFFL;
                     long rawOff = readLE32(raf) & 0xFFFFFFFFL;
                     raf.skipBytes(16);
 
+                    long sectionSpan = Math.max(virtualSize, rawSize);
                     Log.d(TAG, "[PE:step7] Section[" + i + "] name='" + secName
                             + "'  vAddr=0x" + Long.toHexString(vAddr)
+                            + "  virtualSize=" + virtualSize
+                            + "  rawSize=" + rawSize
                             + "  rawOff=0x" + Long.toHexString(rawOff));
 
-                    if (vAddr == rsrcRVA) {
-                        rsrcOffset = rawOff;
-                        Log.d(TAG, "[PE:step7] Resource section matched: '" + secName
-                                + "' at fileOffset=0x" + Long.toHexString(rsrcOffset));
+                    if (rsrcRVA >= vAddr && rsrcRVA - vAddr < sectionSpan) {
+                        long candidateOffset = rawOff + (rsrcRVA - vAddr);
+                        if (candidateOffset >= 0 && candidateOffset < exeFile.length()) {
+                            rsrcOffset = candidateOffset;
+                            Log.d(TAG, "[PE:step7] Resource section matched: '" + secName
+                                    + "' at fileOffset=0x" + Long.toHexString(rsrcOffset));
+                            break;
+                        }
                     }
                 }
 
-                if (rsrcOffset == 0) {
-                    Log.e(TAG, "[PE:step7] No section matched rsrcRVA=0x"
-                            + Long.toHexString(rsrcRVA)
-                            + " — possibly a packed/protected EXE (UPX, Themida, etc.)");
+                if (rsrcOffset == 0 || rsrcOffset >= exeFile.length()) {
+                    Log.e(TAG, "[PE:step7] Could not map resource RVA 0x"
+                            + Long.toHexString(rsrcRVA) + " to a valid file offset");
                     return null;
+                }
+
+                if (rsrcSize <= 0 || rsrcOffset + rsrcSize > exeFile.length()) {
+                    Log.w(TAG, "[PE:step7] Resource size is outside file bounds; continuing with bounded reads");
                 }
 
                 return extractBestIcon(raf, rsrcOffset, rsrcRVA, exeFile.getName());
