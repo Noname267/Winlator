@@ -91,6 +91,7 @@ public class ShortcutsFragment extends Fragment {
     private final ExecutorService imageExecutor = Executors.newFixedThreadPool(2);
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Set<String> pendingExtractions = new HashSet<>();
+    private int loadGeneration = 0;
     private final LruCache<String, Bitmap> bitmapCache = new LruCache<String, Bitmap>(
             Math.max(4 * 1024, (int) (Runtime.getRuntime().maxMemory() / 1024 / 8))) {
         @Override
@@ -209,9 +210,36 @@ public class ShortcutsFragment extends Fragment {
         ArrayList<Shortcut> shortcuts = manager.loadShortcuts();
         shortcuts.removeIf(shortcut -> shortcut == null || shortcut.file == null || shortcut.file.getName().isEmpty());
 
-        recyclerView.setAdapter(new ShortcutsAdapter(shortcuts));
         if (shortcuts.isEmpty()) emptyTextView.setVisibility(View.VISIBLE);
         else emptyTextView.setVisibility(View.GONE);
+
+        final int generation = ++loadGeneration;
+        final File iconsDir = getImagesDir(false);
+        final List<File> preload = new ArrayList<>();
+        for (Shortcut shortcut : shortcuts) {
+            if (preload.size() >= 24) break;
+            File userIcon = new File(iconsDir, FileUtils.getBasename(shortcut.file.getPath()) + ".user.png");
+            if (userIcon.exists() && bitmapCache.get(cacheKey(userIcon)) == null) preload.add(userIcon);
+        }
+
+        if (preload.isEmpty()) {
+            recyclerView.setAdapter(new ShortcutsAdapter(shortcuts));
+            return;
+        }
+
+        final java.util.concurrent.atomic.AtomicInteger remaining = new java.util.concurrent.atomic.AtomicInteger(preload.size());
+        for (File file : preload) {
+            imageExecutor.execute(() -> {
+                Bitmap bitmap = decodeSampled(file, MAX_ICON_WIDTH, MAX_ICON_HEIGHT);
+                if (bitmap != null) bitmapCache.put(cacheKey(file), bitmap);
+                if (remaining.decrementAndGet() == 0) {
+                    mainHandler.post(() -> {
+                        if (!isAdded() || recyclerView == null || generation != loadGeneration) return;
+                        recyclerView.setAdapter(new ShortcutsAdapter(shortcuts));
+                    });
+                }
+            });
+        }
     }
 
     private File getImagesDir(boolean isCover) {
@@ -354,7 +382,7 @@ public class ShortcutsFragment extends Fragment {
         return file.getPath() + "@" + file.lastModified();
     }
 
-    private void showFileInto(ImageView imageView, File file, boolean grid, Shortcut item, String tag) {
+    private void showFileInto(ImageView imageView, File file, boolean grid, Shortcut item, String tag, boolean custom) {
         String key = cacheKey(file);
         Bitmap cached = bitmapCache.get(key);
         if (cached != null) {
@@ -362,7 +390,11 @@ public class ShortcutsFragment extends Fragment {
             imageView.setImageBitmap(cached);
             return;
         }
-        showFallback(imageView, item, grid);
+        if (custom) {
+            imageView.setImageDrawable(null);
+        } else {
+            showFallback(imageView, item, grid);
+        }
         imageExecutor.execute(() -> {
             Bitmap bitmap = decodeSampled(file, MAX_ICON_WIDTH, MAX_ICON_HEIGHT);
             if (bitmap == null) return;
@@ -391,11 +423,11 @@ public class ShortcutsFragment extends Fragment {
         File autoFile = new File(getImagesDir(grid), baseName + ".png");
 
         if (userIcon.exists()) {
-            showFileInto(imageView, userIcon, grid, item, tag);
+            showFileInto(imageView, userIcon, grid, item, tag, true);
             return;
         }
         if (autoFile.exists()) {
-            showFileInto(imageView, autoFile, grid, item, tag);
+            showFileInto(imageView, autoFile, grid, item, tag, false);
             return;
         }
 
@@ -405,7 +437,7 @@ public class ShortcutsFragment extends Fragment {
         if (exeFile == null || !pendingExtractions.add(autoFile.getPath())) return;
         ExeIconExtractor.extractAsync(exeFile, autoFile, grid, () -> mainHandler.post(() -> {
             pendingExtractions.remove(autoFile.getPath());
-            if (autoFile.exists() && tag.equals(imageView.getTag())) showFileInto(imageView, autoFile, grid, item, tag);
+            if (autoFile.exists() && tag.equals(imageView.getTag())) showFileInto(imageView, autoFile, grid, item, tag, false);
         }));
     }
 
