@@ -118,7 +118,7 @@ public abstract class DrawRequests {
         }
         
         if (srcDrawable.isOffscreen()) {
-            client.xServer.getXServerView().nativeCompositeRedirect(srcDrawableId, dstDrawableId, dstX, dstY);
+            client.xServer.getXServerView().compositeRedirect(srcDrawableId, dstDrawableId, dstX, dstY);
             return;
         }
 
