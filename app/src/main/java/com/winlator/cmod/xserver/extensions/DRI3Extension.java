@@ -164,7 +164,7 @@ public class DRI3Extension implements Extension, XResourceManager.OnResourceLife
             GPUImage gpuImage = new GPUImage(fd);
             Drawable drawable = client.xServer.drawableManager.createDrawable(pixmapId, width, height, depth, gpuImage);
             drawable.setOnDrawListener(() -> client.xServer.windowManager.triggerOnUpdateWindowContentDirect(window, drawable));
-            client.xServer.getXServerView().nativeAddDirectContent(window.id, drawable);
+            client.xServer.getXServerView().addDirectContent(window.id, drawable);
             Pixmap pixmap = client.xServer.pixmapManager.createPixmap(drawable);
             client.registerAsOwnerOfResource(pixmap);
             
@@ -209,7 +209,7 @@ public class DRI3Extension implements Extension, XResourceManager.OnResourceLife
             Pixmap pixmap = (Pixmap)resource;
             DirectContent content = directContents.get(pixmap.id);
             if (content != null) {
-                xServer.getXServerView().nativeRemoveDirectContent(content.window.id, pixmap.id);
+                xServer.getXServerView().removeDirectContent(content.window.id, pixmap.id);
                 directContents.remove(pixmap.id);
             }
         }    

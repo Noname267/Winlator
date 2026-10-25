@@ -94,6 +94,8 @@ import com.winlator.cmod.widget.InputControlsView;
 import com.winlator.cmod.widget.LogView;
 import com.winlator.cmod.widget.MagnifierView;
 import com.winlator.cmod.widget.TouchpadView;
+import com.winlator.cmod.widget.VulkanXServerView;
+import com.winlator.cmod.widget.XServerRendererView;
 import com.winlator.cmod.widget.XServerView;
 import com.winlator.cmod.winhandler.MouseEventFlags;
 import com.winlator.cmod.winhandler.TaskManagerDialog;
@@ -133,7 +135,7 @@ import java.util.regex.Pattern;
 import cn.sherlock.com.sun.media.sound.SF2Soundbank;
 
 public class XServerDisplayActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
-    private XServerView xServerView;
+    private XServerRendererView xServerView;
     private InputControlsView inputControlsView;
     private TouchpadView touchpadView;
     private XEnvironment environment;
@@ -931,7 +933,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
     @SuppressLint("SourceLockedOrientationActivity")
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-        XServerView view = getXServerView();
+        XServerRendererView view = getXServerView();
         
         switch (item.getItemId()) {
             case R.id.main_menu_keyboard:
@@ -1211,7 +1213,12 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
 
     private void setupUI() {
         FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
-        xServerView = new XServerView(this, xServer);
+        if (xServer.isVulkan()) {
+            VulkanXServerView.loadNativeLibrary();
+            xServerView = new VulkanXServerView(this, xServer);
+        } else {
+            xServerView = new XServerView(this, xServer);
+        }
         xServerView.setCursorVisible(false);
 
         if (shortcut != null) {
@@ -1945,7 +1952,7 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
         return winHandler;
     }
 
-    public XServerView getXServerView() {
+    public XServerRendererView getXServerView() {
         return xServerView;
     }
 

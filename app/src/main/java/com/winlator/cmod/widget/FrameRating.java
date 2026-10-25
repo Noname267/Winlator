@@ -94,6 +94,10 @@ public class FrameRating extends FrameLayout implements Runnable {
     
     public String processDisplayDriver(String displayDriver) {
         String driver = "EGL";
+
+        if (displayDriver.equals("vulkan")) {
+            driver = "Vulkan";
+        }
         
         if (displayDriver.equals("displayx")) {
             if (displayConfig.get("trueDisplayX").equals("1"))

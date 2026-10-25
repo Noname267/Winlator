@@ -5,7 +5,7 @@ import android.util.SparseArray;
 
 import com.winlator.cmod.core.CursorLocker;
 import com.winlator.cmod.core.KeyValueSet;
-import com.winlator.cmod.widget.XServerView;
+import com.winlator.cmod.widget.XServerRendererView;
 import com.winlator.cmod.winhandler.WinHandler;
 import com.winlator.cmod.xserver.extensions.BigReqExtension;
 import com.winlator.cmod.xserver.extensions.DRI3Extension;
@@ -49,7 +49,7 @@ public class XServer {
     private boolean disableMouse = false;
     private boolean isGrabbed = false;
     private int surfaceFormat = Drawable.HAL_PIXEL_FORMAT_BGRA_8888;
-    private XServerView xServerView;
+    private XServerRendererView xServerView;
     private XClient grabbingClient = null;
     private XInputExtension xInputExtension;
     // Last position of an absolute source (touchscreen, stylus, uncaptured mouse), raw motion is measured from it
@@ -100,6 +100,10 @@ public class XServer {
         return this.displayDriver.toLowerCase().equals("displayx");
     }
 
+    public boolean isVulkan() {
+        return this.displayDriver.toLowerCase().equals("vulkan");
+    }
+
     public boolean isRelativeMouseMovement() {
         return relativeMouseMovement;
     }
@@ -115,11 +119,11 @@ public class XServer {
         this.simulateTouchScreen = simulateTouchScreen;
     }
     
-    public void setXServerView(XServerView view) {
+    public void setXServerView(XServerRendererView view) {
         this.xServerView = view;
     }
     
-    public XServerView getXServerView() {
+    public XServerRendererView getXServerView() {
         return this.xServerView;
     }
     

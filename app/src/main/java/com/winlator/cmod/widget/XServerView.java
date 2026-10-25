@@ -41,7 +41,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class XServerView extends SurfaceView implements SurfaceHolder.Callback, WindowManager.OnWindowModificationListener, Pointer.OnPointerMotionListener, CursorManager.OnCursorModificationListener {
+public class XServerView extends XServerRendererView implements SurfaceHolder.Callback, WindowManager.OnWindowModificationListener, Pointer.OnPointerMotionListener, CursorManager.OnCursorModificationListener {
     static final String RENDERER_LOG_STRING = "Renderer";
     private XServer xServer;
     private Context context;
@@ -57,7 +57,7 @@ public class XServerView extends SurfaceView implements SurfaceHolder.Callback, 
     private boolean cursorVisible = true;
     
     public XServerView(Context context, XServer xserver) {
-        super(context);
+        super(context, xserver);
         this.xServer = xserver;
         this.context = context;
         getHolder().addCallback(this);
@@ -125,6 +125,26 @@ public class XServerView extends SurfaceView implements SurfaceHolder.Callback, 
     public void setUnviewableWMClass(String unviewableWMName) {
         this.unviewableWMClass = unviewableWMName;
         nativeSetUnviewableWMClass(this.unviewableWMClass);
+    }
+
+    @Override
+    public void addDirectContent(int windowId, Drawable drawable) {
+        nativeAddDirectContent(windowId, drawable);
+    }
+
+    @Override
+    public void removeDirectContent(int windowId, int pixmapId) {
+        nativeRemoveDirectContent(windowId, pixmapId);
+    }
+
+    @Override
+    public void setCompositeRedirected(int windowId, boolean redirected) {
+        nativeSetCompositeRedirected(windowId, redirected);
+    }
+
+    @Override
+    public void compositeRedirect(int srcDrawableId, int dstDrawableId, short dstX, short dstY) {
+        nativeCompositeRedirect(srcDrawableId, dstDrawableId, dstX, dstY);
     }
     
     @Override

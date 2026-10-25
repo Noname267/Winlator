@@ -64,7 +64,7 @@ public class XComposite implements Extension {
         
         window.setCompositeRedirected(true);
         window.getContent().setOffscreen(true);
-        xserver.getXServerView().nativeSetCompositeRedirected(window.id, true);
+        xserver.getXServerView().setCompositeRedirected(window.id, true);
     }
     
     private void unredirectWindow(XClient client, XInputStream inputStream, XOutputStream outputStream) throws IOException, XRequestError {
@@ -79,7 +79,7 @@ public class XComposite implements Extension {
         
         window.setCompositeRedirected(false);
         window.getContent().setOffscreen(false);
-        xserver.getXServerView().nativeSetCompositeRedirected(window.id, false);
+        xserver.getXServerView().setCompositeRedirected(window.id, false);
     }
     
     @Override
