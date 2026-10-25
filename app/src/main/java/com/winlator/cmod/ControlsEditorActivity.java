@@ -1,6 +1,7 @@
 package com.winlator.cmod;
 
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -13,6 +14,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.RadioGroup;
+import android.widget.ScrollView;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -33,7 +35,9 @@ import com.winlator.cmod.widget.NumberPicker;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 public class ControlsEditorActivity extends AppCompatActivity implements View.OnClickListener {
     private InputControlsView inputControlsView;
@@ -59,6 +63,7 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         container.findViewById(R.id.BTAddElement).setOnClickListener(this);
         container.findViewById(R.id.BTRemoveElement).setOnClickListener(this);
         container.findViewById(R.id.BTElementSettings).setOnClickListener(this);
+        container.findViewById(R.id.BTSchemeColor).setOnClickListener(this);
     }
 
     @Override
@@ -81,6 +86,113 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
                 }
                 else AppUtils.showToast(this, R.string.no_control_element_selected);
                 break;
+            case R.id.BTSchemeColor:
+                showSchemeColorPicker(v);
+                break;
+        }
+    }
+
+    private void showSchemeColorPicker(View anchorView) {
+        LinearLayout popupContent = new LinearLayout(this);
+        popupContent.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int)UnitUtils.dpToPx(12);
+        popupContent.setPadding(pad, pad, pad, pad);
+
+        TextView title = new TextView(this);
+        title.setText("Scheme Color");
+        title.setTextColor(0xffffffff);
+        title.setTextSize(14);
+        popupContent.addView(title);
+
+        TextView subtitle = new TextView(this);
+        subtitle.setText("Applies to every control that doesn't have its own custom color");
+        subtitle.setTextColor(0xffaaaaaa);
+        subtitle.setTextSize(11);
+        LinearLayout.LayoutParams subtitleParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        subtitleParams.topMargin = (int)UnitUtils.dpToPx(2);
+        subtitleParams.bottomMargin = (int)UnitUtils.dpToPx(8);
+        subtitle.setLayoutParams(subtitleParams);
+        popupContent.addView(subtitle);
+
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        final LinearLayout llSchemeColorList = new LinearLayout(this);
+        llSchemeColorList.setOrientation(LinearLayout.VERTICAL);
+        llSchemeColorList.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        scrollView.addView(llSchemeColorList);
+        popupContent.addView(scrollView);
+
+        loadColorSwatches(llSchemeColorList, profile.getThemeColor(), color -> {
+            profile.setThemeColor(color);
+            profile.save();
+            inputControlsView.invalidate();
+        });
+
+        AppUtils.showPopupWindow(anchorView, popupContent, 320, 0);
+    }
+
+    private interface OnColorSelectedListener {
+        void onColorSelected(int color);
+    }
+
+    private static final int SWATCHES_PER_ROW = 8;
+
+    private static final int[] PALETTE_COLORS = {
+        0, 0xffffffff, 0xffdddddd, 0xffaaaaaa, 0xff777777, 0xff444444, 0xff222222, 0xff000000,
+        0xffff3b30, 0xffff6961, 0xffff453a, 0xffcc0000, 0xff800000, 0xff4d0000, 0xffff8080, 0xffffb3b3,
+        0xffff9500, 0xffff6000, 0xfffe9f0d, 0xffffcc00, 0xffffd60a, 0xffffea00, 0xffffb347, 0xffffdca5,
+        0xff34c759, 0xff30d158, 0xff4cd964, 0xff00b050, 0xff2e8b57, 0xff006400, 0xffa8e6cf, 0xffd4edda,
+        0xff5ac8fa, 0xff32ade6, 0xff00b4d8, 0xff0096c7, 0xff00758a, 0xff004c5a, 0xffb2ebf2, 0xffe0f7fa,
+        0xff007aff, 0xff0a84ff, 0xff2184ff, 0xff1a56db, 0xff003f8f, 0xff001a66, 0xffbed6f8, 0xffdce9ff,
+        0xffaf52de, 0xffbf5af2, 0xff9b59b6, 0xff6e3fa3, 0xff4a0e8f, 0xff2d0066, 0xffd7b4f3, 0xffede0f8,
+        0xffff2d92, 0xffff375f, 0xffff6ab0, 0xffe91e8c, 0xffad1457, 0xff6a0032, 0xffffb3d9, 0xffffdcef,
+    };
+
+    private void loadColorSwatches(final LinearLayout parent, int selectedColor, final OnColorSelectedListener listener) {
+        parent.removeAllViews();
+        int size = (int)UnitUtils.dpToPx(26);
+        int margin = (int)UnitUtils.dpToPx(2);
+        int strokeWidth = (int)UnitUtils.dpToPx(2);
+
+        final List<View> allSwatches = new ArrayList<>();
+
+        for (int rowStart = 0; rowStart < PALETTE_COLORS.length; rowStart += SWATCHES_PER_ROW) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            parent.addView(row);
+
+            int rowEnd = Math.min(rowStart + SWATCHES_PER_ROW, PALETTE_COLORS.length);
+            for (int ci = rowStart; ci < rowEnd; ci++) {
+                final int color = PALETTE_COLORS[ci];
+                final View swatch = new View(this);
+                LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(size, size);
+                params.setMargins(margin, margin, margin, margin);
+                swatch.setLayoutParams(params);
+                swatch.setTag(color);
+                boolean isSelected = color == selectedColor;
+                swatch.setSelected(isSelected);
+
+                GradientDrawable bg = new GradientDrawable();
+                bg.setShape(GradientDrawable.OVAL);
+                bg.setColor(color != 0 ? color : 0xffffffff);
+                bg.setStroke(isSelected ? strokeWidth : 0, 0xffffffff);
+                swatch.setBackground(bg);
+
+                swatch.setOnClickListener(v -> {
+                    for (View s : allSwatches) {
+                        s.setSelected(false);
+                        ((GradientDrawable)s.getBackground()).setStroke(0, 0xffffffff);
+                    }
+                    swatch.setSelected(true);
+                    ((GradientDrawable)swatch.getBackground()).setStroke(strokeWidth, 0xffffffff);
+                    listener.onColorSelected(color);
+                });
+
+                allSwatches.add(swatch);
+                row.addView(swatch);
+            }
         }
     }
 
@@ -149,6 +261,34 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
             public void onStopTrackingTouch(SeekBar seekBar) {}
         });
         sbScale.setProgress((int)(element.getScale() * 100));
+
+        final TextView tvOpacity = view.findViewById(R.id.TVOpacity);
+        SeekBar sbOpacity = view.findViewById(R.id.SBOpacity);
+        sbOpacity.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                tvOpacity.setText(progress+"%");
+                if (fromUser) {
+                    element.setOpacity(progress / 100.0f);
+                    profile.save();
+                    inputControlsView.invalidate();
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+        sbOpacity.setProgress((int)(element.getOpacity() * 100));
+
+        final LinearLayout llColorList = view.findViewById(R.id.LLColorList);
+        loadColorSwatches(llColorList, element.getCustomColor(), color -> {
+            element.setCustomColor(color);
+            profile.save();
+            inputControlsView.invalidate();
+        });
 
         CheckBox cbToggleSwitch = view.findViewById(R.id.CBToggleSwitch);
         cbToggleSwitch.setChecked(element.isToggleSwitch());
