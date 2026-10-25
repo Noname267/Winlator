@@ -9,23 +9,33 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ShortcutInfo;
 import android.content.pm.ShortcutManager;
+import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.drawable.Icon;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
+import android.util.LruCache;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.FrameLayout;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
@@ -33,42 +43,82 @@ import androidx.documentfile.provider.DocumentFile;
 import androidx.fragment.app.Fragment;
 import androidx.preference.PreferenceManager;
 import androidx.recyclerview.widget.DividerItemDecoration;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.winlator.cmod.R;
 import com.winlator.cmod.container.Container;
 import com.winlator.cmod.container.ContainerManager;
 import com.winlator.cmod.container.Shortcut;
 import com.winlator.cmod.contentdialog.ContentDialog;
 import com.winlator.cmod.contentdialog.ShortcutSettingsDialog;
-import com.winlator.cmod.contents.ContentsManager;
+import com.winlator.cmod.core.ExeIconExtractor;
 import com.winlator.cmod.core.FileUtils;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.CopyOption;
-import java.nio.file.Files;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class ShortcutsFragment extends Fragment {
+    private static final String TAG = "ShortcutsFragment";
+    private static final String PREF_GRID_VIEW = "shortcuts_grid_view";
+    private static final int MENU_TOGGLE_VIEW = 7001;
+    private static final float GRID_COLUMN_WIDTH_DP = 150f;
+    private static final int MIN_GRID_COLUMNS = 2;
+    private static final int MAX_ICON_WIDTH = 600;
+    private static final int MAX_ICON_HEIGHT = 900;
+
     private RecyclerView recyclerView;
     private TextView emptyTextView;
     private ContainerManager manager;
+    private SharedPreferences preferences;
+    private boolean isGridView = true;
+    private DividerItemDecoration dividerItemDecoration;
+    private Shortcut shortcutForIconUpdate;
+    private ActivityResultLauncher<String> iconPickerLauncher;
+    private final ExecutorService imageExecutor = Executors.newFixedThreadPool(2);
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final Set<String> pendingExtractions = new HashSet<>();
+    private int loadGeneration = 0;
+    private final LruCache<String, Bitmap> bitmapCache = new LruCache<String, Bitmap>(
+            Math.max(4 * 1024, (int) (Runtime.getRuntime().maxMemory() / 1024 / 8))) {
+        @Override
+        protected int sizeOf(String key, Bitmap value) {
+            return value.getByteCount() / 1024;
+        }
+    };
+
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setHasOptionsMenu(false);
+        setHasOptionsMenu(true);
+        iconPickerLauncher = registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
+            if (uri != null && shortcutForIconUpdate != null) updateShortcutIcon(uri, shortcutForIconUpdate);
+        });
+    }
+
+    @Override
+    public void onDestroy() {
+        imageExecutor.shutdownNow();
+        super.onDestroy();
+    }
+
+    @Override
+    public void onConfigurationChanged(@NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if (recyclerView != null && isGridView) recyclerView.post(this::applyGridSpanCount);
     }
 
     @Override
@@ -82,34 +132,320 @@ public class ShortcutsFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-
-
-
         FrameLayout frameLayout = (FrameLayout)inflater.inflate(R.layout.shortcuts_fragment, container, false);
         recyclerView = frameLayout.findViewById(R.id.RecyclerView);
         emptyTextView = frameLayout.findViewById(R.id.TVEmptyText);
-        recyclerView.setLayoutManager(new LinearLayoutManager(recyclerView.getContext()));
-        recyclerView.addItemDecoration(new DividerItemDecoration(recyclerView.getContext(), DividerItemDecoration.VERTICAL));
+
+        preferences = PreferenceManager.getDefaultSharedPreferences(getContext());
+        isGridView = preferences.getBoolean(PREF_GRID_VIEW, true);
+
+        recyclerView.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+            if (isGridView && (right - left) != (oldRight - oldLeft)) recyclerView.post(this::applyGridSpanCount);
+        });
+
+        updateLayoutManager();
         return frameLayout;
+    }
+
+    @Override
+    public void onCreateOptionsMenu(@NonNull Menu menu, @NonNull MenuInflater inflater) {
+        super.onCreateOptionsMenu(menu, inflater);
+        MenuItem item = menu.add(0, MENU_TOGGLE_VIEW, 0, isGridView ? "List View" : "Grid View");
+        item.setIcon(isGridView ? android.R.drawable.ic_menu_agenda : android.R.drawable.ic_menu_gallery);
+        item.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == MENU_TOGGLE_VIEW) {
+            isGridView = !isGridView;
+            preferences.edit().putBoolean(PREF_GRID_VIEW, isGridView).apply();
+            updateLayoutManager();
+            getActivity().invalidateOptionsMenu();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    private int calculateSpanCount() {
+        float density = getResources().getDisplayMetrics().density;
+        int width = recyclerView.getWidth();
+        float widthDp = width > 0 ? width / density : getResources().getConfiguration().screenWidthDp;
+        return Math.max(MIN_GRID_COLUMNS, (int) (widthDp / GRID_COLUMN_WIDTH_DP));
+    }
+
+    private void applyGridSpanCount() {
+        if (recyclerView == null || !isGridView) return;
+        RecyclerView.LayoutManager layoutManager = recyclerView.getLayoutManager();
+        if (layoutManager instanceof GridLayoutManager) {
+            int span = calculateSpanCount();
+            GridLayoutManager gridLayoutManager = (GridLayoutManager) layoutManager;
+            if (gridLayoutManager.getSpanCount() != span) gridLayoutManager.setSpanCount(span);
+        }
+    }
+
+    private void updateLayoutManager() {
+        if (isGridView) {
+            recyclerView.setLayoutManager(new GridLayoutManager(getContext(), calculateSpanCount()));
+            if (dividerItemDecoration != null) {
+                recyclerView.removeItemDecoration(dividerItemDecoration);
+                dividerItemDecoration = null;
+            }
+            int pad = (int) (4 * getResources().getDisplayMetrics().density);
+            recyclerView.setPadding(pad, pad, pad, pad);
+            recyclerView.setClipToPadding(false);
+            recyclerView.post(this::applyGridSpanCount);
+        } else {
+            recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
+            recyclerView.setPadding(0, 0, 0, 0);
+            if (dividerItemDecoration == null) {
+                dividerItemDecoration = new DividerItemDecoration(getContext(), DividerItemDecoration.VERTICAL);
+                recyclerView.addItemDecoration(dividerItemDecoration);
+            }
+        }
+        if (recyclerView.getAdapter() != null) recyclerView.setAdapter(recyclerView.getAdapter());
     }
 
     public void loadShortcutsList() {
         ArrayList<Shortcut> shortcuts = manager.loadShortcuts();
-
-        // Validate and remove corrupted shortcuts
         shortcuts.removeIf(shortcut -> shortcut == null || shortcut.file == null || shortcut.file.getName().isEmpty());
 
-        recyclerView.setAdapter(new ShortcutsAdapter(shortcuts));
         if (shortcuts.isEmpty()) emptyTextView.setVisibility(View.VISIBLE);
-        else emptyTextView.setVisibility(View.GONE); // Ensure the empty text view is hidden if there are shortcuts
+        else emptyTextView.setVisibility(View.GONE);
+
+        final int generation = ++loadGeneration;
+        final File iconsDir = getImagesDir(false);
+        final List<File> preload = new ArrayList<>();
+        for (Shortcut shortcut : shortcuts) {
+            if (preload.size() >= 24) break;
+            File userIcon = new File(iconsDir, FileUtils.getBasename(shortcut.file.getPath()) + ".user.png");
+            if (userIcon.exists() && bitmapCache.get(cacheKey(userIcon)) == null) preload.add(userIcon);
+        }
+
+        if (preload.isEmpty()) {
+            recyclerView.setAdapter(new ShortcutsAdapter(shortcuts));
+            return;
+        }
+
+        final java.util.concurrent.atomic.AtomicInteger remaining = new java.util.concurrent.atomic.AtomicInteger(preload.size());
+        for (File file : preload) {
+            imageExecutor.execute(() -> {
+                Bitmap bitmap = decodeSampled(file, MAX_ICON_WIDTH, MAX_ICON_HEIGHT);
+                if (bitmap != null) bitmapCache.put(cacheKey(file), bitmap);
+                if (remaining.decrementAndGet() == 0) {
+                    mainHandler.post(() -> {
+                        if (!isAdded() || recyclerView == null || generation != loadGeneration) return;
+                        recyclerView.setAdapter(new ShortcutsAdapter(shortcuts));
+                    });
+                }
+            });
+        }
     }
 
+    private File getImagesDir(boolean isCover) {
+        File dir = new File(Environment.getExternalStorageDirectory(), isCover ? "Winlator/covers" : "Winlator/icons");
+        if ((dir.isDirectory() || dir.mkdirs()) && dir.canWrite()) {
+            File nomedia = new File(dir, ".nomedia");
+            if (!nomedia.exists()) {
+                try { nomedia.createNewFile(); } catch (IOException e) {}
+            }
+            return dir;
+        }
+        File fallback = new File(getContext().getFilesDir(), isCover ? "shortcut_images/covers" : "shortcut_images/icons");
+        fallback.mkdirs();
+        return fallback;
+    }
+
+    private File getUserIconFile(Shortcut shortcut) {
+        return new File(getImagesDir(false), FileUtils.getBasename(shortcut.file.getPath()) + ".user.png");
+    }
+
+    private Bitmap decodeSampled(File file, int maxW, int maxH) {
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        BitmapFactory.decodeFile(file.getPath(), bounds);
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null;
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = computeSampleSize(bounds.outWidth, bounds.outHeight, maxW, maxH);
+        return BitmapFactory.decodeFile(file.getPath(), options);
+    }
+
+    private static int computeSampleSize(int width, int height, int maxW, int maxH) {
+        int sample = 1;
+        while ((width / (sample * 2)) >= maxW || (height / (sample * 2)) >= maxH) sample *= 2;
+        return sample;
+    }
+
+    private void updateShortcutIcon(Uri sourceUri, Shortcut shortcut) {
+        final Context context = getContext();
+        final File destFile = getUserIconFile(shortcut);
+        imageExecutor.execute(() -> {
+            boolean success = false;
+            try {
+                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+                try (InputStream is = context.getContentResolver().openInputStream(sourceUri)) {
+                    byte[] chunk = new byte[8192];
+                    int read;
+                    while ((read = is.read(chunk)) > 0) buffer.write(chunk, 0, read);
+                }
+                byte[] data = buffer.toByteArray();
+
+                BitmapFactory.Options bounds = new BitmapFactory.Options();
+                bounds.inJustDecodeBounds = true;
+                BitmapFactory.decodeByteArray(data, 0, data.length, bounds);
+
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                options.inSampleSize = computeSampleSize(bounds.outWidth, bounds.outHeight, MAX_ICON_WIDTH, MAX_ICON_HEIGHT);
+                Bitmap bitmap = BitmapFactory.decodeByteArray(data, 0, data.length, options);
+
+                if (bitmap != null) {
+                    try (FileOutputStream fos = new FileOutputStream(destFile)) {
+                        success = bitmap.compress(Bitmap.CompressFormat.PNG, 100, fos);
+                    }
+                    bitmap.recycle();
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to save icon", e);
+            }
+
+            final boolean ok = success;
+            mainHandler.post(() -> {
+                if (getContext() == null) return;
+                Toast.makeText(getContext(), ok ? "Icon updated!" : "Error saving icon", Toast.LENGTH_SHORT).show();
+                if (ok && recyclerView != null && recyclerView.getAdapter() != null) {
+                    recyclerView.getAdapter().notifyDataSetChanged();
+                }
+            });
+        });
+    }
+
+    private void resetShortcutIcon(Shortcut shortcut) {
+        File userIcon = getUserIconFile(shortcut);
+        if (userIcon.exists() && userIcon.delete()) {
+            Toast.makeText(getContext(), "Icon reset", Toast.LENGTH_SHORT).show();
+            if (recyclerView.getAdapter() != null) recyclerView.getAdapter().notifyDataSetChanged();
+        }
+    }
+
+    private File resolveExeFile(Shortcut item) {
+        if (item.path == null || item.path.isEmpty()) return null;
+
+        String path = item.path.replace("\\", "/").trim();
+        if (path.startsWith("\"") && path.endsWith("\"") && path.length() > 1) path = path.substring(1, path.length() - 1);
+
+        if (path.startsWith("/")) {
+            File f = new File(path);
+            if (f.exists()) return f;
+        }
+
+        if (path.length() >= 3 && path.charAt(1) == ':' && path.charAt(2) == '/') {
+            String drive = path.substring(0, 1).toLowerCase();
+            String relative = path.substring(3);
+
+            if (item.container != null) {
+                for (String[] entry : item.container.drivesIterator()) {
+                    if (entry == null || entry.length < 2 || entry[0] == null || entry[1] == null) continue;
+                    if (entry[0].replace(":", "").trim().equalsIgnoreCase(drive)) {
+                        File f = new File(entry[1], relative);
+                        if (f.exists()) return f;
+                    }
+                }
+            }
+
+            switch (drive) {
+                case "c": {
+                    File root = item.container != null ? item.container.getRootDir() : null;
+                    if (root != null) {
+                        File f = new File(root, ".wine/drive_c/" + relative);
+                        if (f.exists()) return f;
+                    }
+                    break;
+                }
+                case "d": {
+                    File f = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), relative);
+                    if (f.exists()) return f;
+                    f = new File(Environment.getExternalStorageDirectory(), relative);
+                    if (f.exists()) return f;
+                    break;
+                }
+                case "z": {
+                    File f = new File("/" + relative);
+                    if (f.exists()) return f;
+                    break;
+                }
+            }
+        }
+        return null;
+    }
+
+    private String cacheKey(File file) {
+        return file.getPath() + "@" + file.lastModified();
+    }
+
+    private void showFileInto(ImageView imageView, File file, boolean grid, Shortcut item, String tag, boolean custom) {
+        String key = cacheKey(file);
+        Bitmap cached = bitmapCache.get(key);
+        if (cached != null) {
+            imageView.setScaleType(grid ? ImageView.ScaleType.CENTER_CROP : ImageView.ScaleType.FIT_CENTER);
+            imageView.setImageBitmap(cached);
+            return;
+        }
+        if (custom) {
+            imageView.setImageDrawable(null);
+        } else {
+            showFallback(imageView, item, grid);
+        }
+        imageExecutor.execute(() -> {
+            Bitmap bitmap = decodeSampled(file, MAX_ICON_WIDTH, MAX_ICON_HEIGHT);
+            if (bitmap == null) return;
+            bitmapCache.put(key, bitmap);
+            mainHandler.post(() -> {
+                if (tag.equals(imageView.getTag())) {
+                    imageView.setScaleType(grid ? ImageView.ScaleType.CENTER_CROP : ImageView.ScaleType.FIT_CENTER);
+                    imageView.setImageBitmap(bitmap);
+                }
+            });
+        });
+    }
+
+    private void showFallback(ImageView imageView, Shortcut item, boolean grid) {
+        imageView.setScaleType(grid ? ImageView.ScaleType.CENTER_INSIDE : ImageView.ScaleType.FIT_CENTER);
+        if (item.icon != null) imageView.setImageBitmap(item.icon);
+        else imageView.setImageResource(R.drawable.icon_wine);
+    }
+
+    private void bindShortcutImage(ImageView imageView, Shortcut item, boolean grid) {
+        String baseName = FileUtils.getBasename(item.file.getPath());
+        String tag = item.file.getPath() + (grid ? "#grid" : "#list");
+        imageView.setTag(tag);
+
+        File userIcon = new File(getImagesDir(false), baseName + ".user.png");
+        File autoFile = new File(getImagesDir(grid), baseName + ".png");
+
+        if (userIcon.exists()) {
+            showFileInto(imageView, userIcon, grid, item, tag, true);
+            return;
+        }
+        if (autoFile.exists()) {
+            showFileInto(imageView, autoFile, grid, item, tag, false);
+            return;
+        }
+
+        showFallback(imageView, item, grid);
+
+        File exeFile = resolveExeFile(item);
+        if (exeFile == null || !pendingExtractions.add(autoFile.getPath())) return;
+        ExeIconExtractor.extractAsync(exeFile, autoFile, grid, () -> mainHandler.post(() -> {
+            pendingExtractions.remove(autoFile.getPath());
+            if (autoFile.exists() && tag.equals(imageView.getTag())) showFileInto(imageView, autoFile, grid, item, tag, false);
+        }));
+    }
 
     private class ShortcutsAdapter extends RecyclerView.Adapter<ShortcutsAdapter.ViewHolder> {
         private final List<Shortcut> data;
 
         private class ViewHolder extends RecyclerView.ViewHolder {
-            private final ImageButton menuButton;
+            private final View menuButton;
             private final ImageView imageView;
             private final TextView title;
             private final TextView subtitle;
@@ -129,27 +465,53 @@ public class ShortcutsFragment extends Fragment {
             this.data = data;
         }
 
+        @Override
+        public int getItemViewType(int position) {
+            return isGridView ? 1 : 0;
+        }
+
         @NonNull
         @Override
         public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            return new ViewHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.shortcut_list_item, parent, false));
+            int layoutId = viewType == 1 ? R.layout.shortcut_grid_item : R.layout.shortcut_list_item;
+            return new ViewHolder(LayoutInflater.from(parent.getContext()).inflate(layoutId, parent, false));
         }
 
         @Override
         public void onViewRecycled(@NonNull ViewHolder holder) {
-            holder.menuButton.setOnClickListener(null);
+            if (holder.menuButton != null) holder.menuButton.setOnClickListener(null);
             holder.innerArea.setOnClickListener(null);
+            holder.innerArea.setOnLongClickListener(null);
             super.onViewRecycled(holder);
         }
 
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             final Shortcut item = data.get(position);
-            if (item.icon != null) holder.imageView.setImageBitmap(item.icon);
             holder.title.setText(item.name);
             holder.subtitle.setText(item.container.getName());
-            holder.menuButton.setOnClickListener((v) -> showListItemMenu(v, item));
             holder.innerArea.setOnClickListener((v) -> runFromShortcut(item));
+
+            if (isGridView) {
+                if (holder.menuButton != null) holder.menuButton.setVisibility(View.GONE);
+                holder.innerArea.setOnLongClickListener(v -> {
+                    showListItemMenu(holder.title, item);
+                    return true;
+                });
+                try {
+                    androidx.constraintlayout.widget.ConstraintLayout.LayoutParams params =
+                            (androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) holder.imageView.getLayoutParams();
+                    params.dimensionRatio = "3:4";
+                    holder.imageView.setLayoutParams(params);
+                } catch (ClassCastException ignored) {}
+            } else {
+                holder.innerArea.setOnLongClickListener(null);
+                if (holder.menuButton != null) {
+                    holder.menuButton.setVisibility(View.VISIBLE);
+                    holder.menuButton.setOnClickListener((v) -> showListItemMenu(v, item));
+                }
+            }
+            bindShortcutImage(holder.imageView, item, isGridView);
         }
 
         @Override
@@ -168,13 +530,18 @@ public class ShortcutsFragment extends Fragment {
                 if (itemId == R.id.shortcut_settings) {
                     (new ShortcutSettingsDialog(ShortcutsFragment.this, shortcut)).show();
                 }
+                else if (itemId == R.id.shortcut_change_icon) {
+                    shortcutForIconUpdate = shortcut;
+                    iconPickerLauncher.launch("image/*");
+                }
+                else if (itemId == R.id.shortcut_reset_icon) {
+                    resetShortcutIcon(shortcut);
+                }
                 else if (itemId == R.id.shortcut_remove) {
                     ContentDialog.confirm(context, R.string.do_you_want_to_remove_this_shortcut, () -> {
                         boolean fileDeleted = shortcut.file.delete();
                         File lnkFile = new File(shortcut.file.getPath().substring(0, shortcut.file.getPath().lastIndexOf(".")) + ".lnk");
-                        if (lnkFile.exists()) {
-                            lnkFile.delete();
-                        }
+                        if (lnkFile.exists()) lnkFile.delete();
 
                         if (fileDeleted) {
                             disableShortcutOnScreen(requireContext(), shortcut);
@@ -186,18 +553,14 @@ public class ShortcutsFragment extends Fragment {
                     });
                 }
                 else if (itemId == R.id.shortcut_clone_to_container) {
-                    // Use the ContainerManager to get the list of containers
                     ContainerManager containerManager = new ContainerManager(context);
                     ArrayList<Container> containers = containerManager.getContainers();
-
-                    // Show a container selection dialog
                     showContainerSelectionDialog(containers, new OnContainerSelectedListener() {
                         @Override
                         public void onContainerSelected(Container selectedContainer) {
-                            // Use the selected container to clone the shortcut
                             if (shortcut.cloneToContainer(selectedContainer)) {
                                 Toast.makeText(context, "Shortcut cloned successfully.", Toast.LENGTH_SHORT).show();
-                                loadShortcutsList(); // Reload the shortcuts to show the cloned one
+                                loadShortcutsList();
                             } else {
                                 Toast.makeText(context, "Failed to clone shortcut.", Toast.LENGTH_SHORT).show();
                             }
@@ -205,8 +568,7 @@ public class ShortcutsFragment extends Fragment {
                     });
                 }
                 else if (itemId == R.id.shortcut_add_to_home_screen) {
-                    if (shortcut.getExtra("uuid").equals(""))
-                        shortcut.genUUID();
+                    if (shortcut.getExtra("uuid").equals("")) shortcut.genUUID();
                     addShortcutToScreen(shortcut);
                 }
                 else if (itemId == R.id.shortcut_export) {
@@ -220,30 +582,16 @@ public class ShortcutsFragment extends Fragment {
             listItemMenu.show();
         }
 
-
-        // Define the listener interface for selecting a container
         public interface OnContainerSelectedListener {
             void onContainerSelected(Container container);
         }
 
         private void showContainerSelectionDialog(ArrayList<Container> containers, OnContainerSelectedListener listener) {
-            // Create an AlertDialog to show the list of containers
             AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
             builder.setTitle("Select a container");
-
-            // Create an array of container names to display
             String[] containerNames = new String[containers.size()];
-            for (int i = 0; i < containers.size(); i++) {
-                containerNames[i] = containers.get(i).getName();
-            }
-
-            // Set up the list in the dialog
-            builder.setItems(containerNames, (dialog, which) -> {
-                // Call the listener when a container is selected
-                listener.onContainerSelected(containers.get(which));
-            });
-
-            // Show the dialog
+            for (int i = 0; i < containers.size(); i++) containerNames[i] = containers.get(i).getName();
+            builder.setItems(containerNames, (dialog, which) -> listener.onContainerSelected(containers.get(which)));
             builder.show();
         }
 
@@ -254,24 +602,21 @@ public class ShortcutsFragment extends Fragment {
                 Intent intent = new Intent(activity, XServerDisplayActivity.class);
                 intent.putExtra("container_id", shortcut.container.id);
                 intent.putExtra("shortcut_path", shortcut.file.getPath());
-                intent.putExtra("shortcut_name", shortcut.name); // Add this line to pass the shortcut name
-                // Check if the shortcut has the disableXinput value; if not, default to false.
-                String disableXinputValue = shortcut.getExtra("disableXinput", "0"); // Get value from shortcut or use "0" (false) by default
-                intent.putExtra("disableXinput", disableXinputValue); // Use the actual value from the shortcut
+                intent.putExtra("shortcut_name", shortcut.name);
+                String disableXinputValue = shortcut.getExtra("disableXinput", "0");
+                intent.putExtra("disableXinput", disableXinputValue);
                 activity.startActivity(intent);
             }
             else XrActivity.openIntent(activity, shortcut.container.id, shortcut.file.getPath());
         }
 
         private void exportShortcut(Shortcut shortcut) {
-            // Check for a custom frontend export path in shared preferences
             SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(getContext());
             String uriString = sharedPreferences.getString("shortcuts_export_path_uri", null);
 
             File shortcutsDir;
 
             if (uriString != null) {
-                // If custom URI is set, use it
                 Uri folderUri = Uri.parse(uriString);
                 DocumentFile pickedDir = DocumentFile.fromTreeUri(getContext(), folderUri);
 
@@ -291,7 +636,6 @@ public class ShortcutsFragment extends Fragment {
             }
 
             File exportFile = new File(shortcutsDir, shortcut.file.getName());
-
             boolean fileExists = exportFile.exists();
             boolean containerIdFound = false;
 
@@ -310,32 +654,22 @@ public class ShortcutsFragment extends Fragment {
                     }
                 }
 
-                if (!containerIdFound) {
-                    lines.add("container_id:" + shortcut.container.id);
-                }
+                if (!containerIdFound) lines.add("container_id:" + shortcut.container.id);
 
                 try (FileWriter writer = new FileWriter(exportFile, false)) {
-                    for (String line : lines) {
-                        writer.write(line + "\n");
-                    }
+                    for (String line : lines) writer.write(line + "\n");
                     writer.flush();
                 }
 
-                Log.d("ShortcutsFragment", "Shortcut exported successfully to " + exportFile.getPath());
+                Log.d(TAG, "Shortcut exported successfully to " + exportFile.getPath());
 
-                // Determine the toast message
-                String message;
-                if (fileExists) {
-                    message = "Shortcut Updated at " + exportFile.getPath();
-                } else {
-                    message = "Shortcut Exported to " + exportFile.getPath();
-                }
-
-                // Show a toast message to the user
+                String message = fileExists
+                        ? "Shortcut Updated at " + exportFile.getPath()
+                        : "Shortcut Exported to " + exportFile.getPath();
                 Toast.makeText(getContext(), message, Toast.LENGTH_LONG).show();
 
             } catch (IOException e) {
-                Log.e("ShortcutsFragment", "Failed to export shortcut", e);
+                Log.e(TAG, "Failed to export shortcut", e);
                 Toast.makeText(getContext(), "Failed to export shortcut", Toast.LENGTH_LONG).show();
             }
         }
@@ -349,7 +683,6 @@ public class ShortcutsFragment extends Fragment {
             long totalPlaytime = playtimePrefs.getLong(playtimeKey, 0);
             int playCount = playtimePrefs.getInt(playCountKey, 0);
 
-            // Convert playtime to human-readable format
             long seconds = (totalPlaytime / 1000) % 60;
             long minutes = (totalPlaytime / (1000 * 60)) % 60;
             long hours = (totalPlaytime / (1000 * 60 * 60)) % 24;
@@ -357,7 +690,6 @@ public class ShortcutsFragment extends Fragment {
 
             String playtimeFormatted = String.format("%dd %02dh %02dm %02ds", days, hours, minutes, seconds);
 
-            // Create the properties dialog
             ContentDialog dialog = new ContentDialog(getContext(), R.layout.shortcut_properties_dialog);
             dialog.setTitle("Properties");
 
@@ -368,7 +700,6 @@ public class ShortcutsFragment extends Fragment {
             playtimeTextView.setText("Playtime: " + playtimeFormatted);
 
             Button resetPropertiesButton = dialog.findViewById(R.id.reset_properties);
-
             resetPropertiesButton.setOnClickListener(v -> {
                 playtimePrefs.edit().remove(playtimeKey).remove(playCountKey).apply();
                 Toast.makeText(getContext(), "Properties reset successfully.", Toast.LENGTH_SHORT).show();
@@ -377,10 +708,6 @@ public class ShortcutsFragment extends Fragment {
 
             dialog.show();
         }
-
-
-
-
     }
 
     private ShortcutInfo buildScreenShortCut(String shortLabel, String longLabel, int containerId, String shortcutPath, Icon icon, String uuid) {
@@ -399,9 +726,21 @@ public class ShortcutsFragment extends Fragment {
 
     private void addShortcutToScreen(Shortcut shortcut) {
         ShortcutManager shortcutManager = getSystemService(requireContext(), ShortcutManager.class);
-        if (shortcutManager != null && shortcutManager.isRequestPinShortcutSupported())
+        if (shortcutManager != null && shortcutManager.isRequestPinShortcutSupported()) {
+            String baseName = FileUtils.getBasename(shortcut.file.getPath());
+            File iconDir = getImagesDir(false);
+            File userIcon = new File(iconDir, baseName + ".user.png");
+            File autoIcon = new File(iconDir, baseName + ".png");
+
+            Bitmap bitmap = null;
+            if (userIcon.exists()) bitmap = decodeSampled(userIcon, 256, 256);
+            if (bitmap == null && autoIcon.exists()) bitmap = decodeSampled(autoIcon, 256, 256);
+            if (bitmap == null) bitmap = shortcut.icon;
+            if (bitmap == null) bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.icon_wine);
+
             shortcutManager.requestPinShortcut(buildScreenShortCut(shortcut.name, shortcut.name, shortcut.container.id,
-                    shortcut.file.getPath(), Icon.createWithBitmap(shortcut.icon), shortcut.getExtra("uuid")), null);
+                    shortcut.file.getPath(), Icon.createWithBitmap(bitmap), shortcut.getExtra("uuid")), null);
+        }
     }
 
     public static void disableShortcutOnScreen(Context context, Shortcut shortcut) {
