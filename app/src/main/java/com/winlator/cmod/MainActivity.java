@@ -40,6 +40,7 @@ import androidx.preference.PreferenceManager;
 import com.google.android.material.navigation.NavigationView;
 import com.winlator.cmod.R;
 import com.winlator.cmod.contentdialog.ContentDialog;
+import com.winlator.cmod.core.AppUtils;
 import com.winlator.cmod.core.Callback;
 import com.winlator.cmod.core.ImageUtils;
 import com.winlator.cmod.core.PreloaderDialog;
@@ -68,6 +69,16 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private SharedPreferences sharedPreferences;
     private ContainerManager containerManager;
     private boolean isDarkMode;
+    private boolean keyboardHiddenOnStart = false;
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus && !keyboardHiddenOnStart) {
+            keyboardHiddenOnStart = true;
+            AppUtils.hideKeyboard(this);
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
