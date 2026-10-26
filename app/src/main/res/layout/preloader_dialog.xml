@@ -52,14 +52,11 @@
             android:textSize="14sp" />
     </LinearLayout>
 
-    <ProgressBar
+    <com.winlator.cmod.widget.LaunchProgressBar
         android:id="@+id/LaunchProgress"
-        style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent"
         android:layout_height="4dp"
         android:layout_gravity="bottom"
-        android:indeterminate="true"
-        android:indeterminateTint="@color/colorAccent"
         android:visibility="gone" />
 
     <LinearLayout
