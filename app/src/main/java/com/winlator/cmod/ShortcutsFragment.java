@@ -68,8 +68,10 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 public class ShortcutsFragment extends Fragment {
     private static final String TAG = "ShortcutsFragment";
@@ -92,7 +94,7 @@ public class ShortcutsFragment extends Fragment {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final Set<String> pendingExtractions = new HashSet<>();
     private int loadGeneration = 0;
-    private final LruCache<String, Bitmap> bitmapCache = new LruCache<String, Bitmap>(
+    private static final LruCache<String, Bitmap> bitmapCache = new LruCache<String, Bitmap>(
             Math.max(4 * 1024, (int) (Runtime.getRuntime().maxMemory() / 1024 / 8))) {
         @Override
         protected int sizeOf(String key, Bitmap value) {
@@ -206,43 +208,105 @@ public class ShortcutsFragment extends Fragment {
         if (recyclerView.getAdapter() != null) recyclerView.setAdapter(recyclerView.getAdapter());
     }
 
-    public void loadShortcutsList() {
-        ArrayList<Shortcut> shortcuts = manager.loadShortcuts();
-        shortcuts.removeIf(shortcut -> shortcut == null || shortcut.file == null || shortcut.file.getName().isEmpty());
+    private static ArrayList<Shortcut> preloadedShortcuts;
+    private static boolean preloadedGrid;
+    private static long preloadedAt;
+    private static final ExecutorService PRELOAD_EXECUTOR = Executors.newSingleThreadExecutor();
 
-        if (shortcuts.isEmpty()) emptyTextView.setVisibility(View.VISIBLE);
-        else emptyTextView.setVisibility(View.GONE);
+    public static void preload(Context context, ContainerManager manager, Runnable onReady) {
+        final Context appContext = context.getApplicationContext();
+        final boolean grid = PreferenceManager.getDefaultSharedPreferences(appContext).getBoolean(PREF_GRID_VIEW, true);
+        PRELOAD_EXECUTOR.execute(() -> {
+            final ArrayList<Shortcut> shortcuts = loadAndWarm(appContext, manager, grid);
+            new Handler(Looper.getMainLooper()).post(() -> {
+                synchronized (ShortcutsFragment.class) {
+                    preloadedShortcuts = shortcuts;
+                    preloadedGrid = grid;
+                    preloadedAt = System.currentTimeMillis();
+                }
+                onReady.run();
+            });
+        });
+    }
 
-        final int generation = ++loadGeneration;
-        final File iconsDir = getImagesDir(false);
-        final List<File> preload = new ArrayList<>();
+    private static synchronized ArrayList<Shortcut> takePreloaded(boolean grid) {
+        ArrayList<Shortcut> result = preloadedShortcuts;
+        boolean usable = result != null && preloadedGrid == grid && System.currentTimeMillis() - preloadedAt < 10000;
+        preloadedShortcuts = null;
+        return usable ? result : null;
+    }
+
+    private static ArrayList<Shortcut> loadAndWarm(Context context, ContainerManager manager, boolean grid) {
+        ArrayList<Shortcut> loaded;
+        try {
+            loaded = manager.loadShortcuts();
+            loaded.removeIf(shortcut -> shortcut == null || shortcut.file == null || shortcut.file.getName().isEmpty());
+        }
+        catch (Exception e) {
+            Log.e(TAG, "Failed to load shortcuts", e);
+            loaded = new ArrayList<>();
+        }
+        final ArrayList<Shortcut> shortcuts = loaded;
+
+        File iconsDir = getImagesDir(context, false);
+        File autoDir = getImagesDir(context, grid);
+        List<Callable<Void>> tasks = new ArrayList<>();
         for (Shortcut shortcut : shortcuts) {
-            if (preload.size() >= 24) break;
-            File userIcon = new File(iconsDir, FileUtils.getBasename(shortcut.file.getPath()) + ".user.png");
-            if (userIcon.exists() && bitmapCache.get(cacheKey(userIcon)) == null) preload.add(userIcon);
+            String baseName = FileUtils.getBasename(shortcut.file.getPath());
+            File userIcon = new File(iconsDir, baseName + ".user.png");
+            final File shown = userIcon.exists() ? userIcon : new File(autoDir, baseName + ".png");
+            if (shown.exists() && bitmapCache.get(cacheKey(shown)) == null) {
+                tasks.add(() -> {
+                    if (bitmapCache.size() > bitmapCache.maxSize() * 0.9) return null;
+                    Bitmap bitmap = decodeSampled(shown, MAX_ICON_WIDTH, MAX_ICON_HEIGHT);
+                    if (bitmap != null) bitmapCache.put(cacheKey(shown), bitmap);
+                    return null;
+                });
+            }
         }
 
-        if (preload.isEmpty()) {
-            recyclerView.setAdapter(new ShortcutsAdapter(shortcuts));
+        if (!tasks.isEmpty()) {
+            ExecutorService pool = Executors.newFixedThreadPool(2);
+            try {
+                pool.invokeAll(tasks, 200, TimeUnit.MILLISECONDS);
+            }
+            catch (InterruptedException e) {}
+            finally {
+                pool.shutdownNow();
+            }
+        }
+        return shortcuts;
+    }
+
+    public void loadShortcutsList() {
+        final int generation = ++loadGeneration;
+        final boolean grid = isGridView;
+
+        final ArrayList<Shortcut> ready = takePreloaded(grid);
+        if (ready != null) {
+            emptyTextView.setVisibility(ready.isEmpty() ? View.VISIBLE : View.GONE);
+            recyclerView.setAdapter(new ShortcutsAdapter(ready));
             return;
         }
 
-        final java.util.concurrent.atomic.AtomicInteger remaining = new java.util.concurrent.atomic.AtomicInteger(preload.size());
-        for (File file : preload) {
-            imageExecutor.execute(() -> {
-                Bitmap bitmap = decodeSampled(file, MAX_ICON_WIDTH, MAX_ICON_HEIGHT);
-                if (bitmap != null) bitmapCache.put(cacheKey(file), bitmap);
-                if (remaining.decrementAndGet() == 0) {
-                    mainHandler.post(() -> {
-                        if (!isAdded() || recyclerView == null || generation != loadGeneration) return;
-                        recyclerView.setAdapter(new ShortcutsAdapter(shortcuts));
-                    });
-                }
+        final Context appContext = getContext().getApplicationContext();
+        if (recyclerView.getAdapter() == null) emptyTextView.setVisibility(View.GONE);
+
+        imageExecutor.execute(() -> {
+            final ArrayList<Shortcut> shortcuts = loadAndWarm(appContext, manager, grid);
+            mainHandler.post(() -> {
+                if (!isAdded() || recyclerView == null || generation != loadGeneration) return;
+                emptyTextView.setVisibility(shortcuts.isEmpty() ? View.VISIBLE : View.GONE);
+                recyclerView.setAdapter(new ShortcutsAdapter(shortcuts));
             });
-        }
+        });
     }
 
     private File getImagesDir(boolean isCover) {
+        return getImagesDir(getContext(), isCover);
+    }
+
+    private static File getImagesDir(Context context, boolean isCover) {
         File dir = new File(Environment.getExternalStorageDirectory(), isCover ? "Winlator/covers" : "Winlator/icons");
         if ((dir.isDirectory() || dir.mkdirs()) && dir.canWrite()) {
             File nomedia = new File(dir, ".nomedia");
@@ -251,7 +315,7 @@ public class ShortcutsFragment extends Fragment {
             }
             return dir;
         }
-        File fallback = new File(getContext().getFilesDir(), isCover ? "shortcut_images/covers" : "shortcut_images/icons");
+        File fallback = new File(context.getFilesDir(), isCover ? "shortcut_images/covers" : "shortcut_images/icons");
         fallback.mkdirs();
         return fallback;
     }
@@ -260,7 +324,7 @@ public class ShortcutsFragment extends Fragment {
         return new File(getImagesDir(false), FileUtils.getBasename(shortcut.file.getPath()) + ".user.png");
     }
 
-    private Bitmap decodeSampled(File file, int maxW, int maxH) {
+    private static Bitmap decodeSampled(File file, int maxW, int maxH) {
         BitmapFactory.Options bounds = new BitmapFactory.Options();
         bounds.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(file.getPath(), bounds);
@@ -378,7 +442,7 @@ public class ShortcutsFragment extends Fragment {
         return null;
     }
 
-    private String cacheKey(File file) {
+    private static String cacheKey(File file) {
         return file.getPath() + "@" + file.lastModified();
     }
 
@@ -390,19 +454,22 @@ public class ShortcutsFragment extends Fragment {
             imageView.setImageBitmap(cached);
             return;
         }
-        if (custom) {
-            imageView.setImageDrawable(null);
-        } else {
-            showFallback(imageView, item, grid);
-        }
+        imageView.setImageDrawable(null);
         imageExecutor.execute(() -> {
             Bitmap bitmap = decodeSampled(file, MAX_ICON_WIDTH, MAX_ICON_HEIGHT);
-            if (bitmap == null) return;
+            if (bitmap == null) {
+                mainHandler.post(() -> {
+                    if (tag.equals(imageView.getTag())) showFallback(imageView, item, grid);
+                });
+                return;
+            }
             bitmapCache.put(key, bitmap);
             mainHandler.post(() -> {
                 if (tag.equals(imageView.getTag())) {
                     imageView.setScaleType(grid ? ImageView.ScaleType.CENTER_CROP : ImageView.ScaleType.FIT_CENTER);
                     imageView.setImageBitmap(bitmap);
+                    imageView.setAlpha(0f);
+                    imageView.animate().alpha(1f).setDuration(150).start();
                 }
             });
         });
@@ -417,6 +484,8 @@ public class ShortcutsFragment extends Fragment {
     private void bindShortcutImage(ImageView imageView, Shortcut item, boolean grid) {
         String baseName = FileUtils.getBasename(item.file.getPath());
         String tag = item.file.getPath() + (grid ? "#grid" : "#list");
+        imageView.animate().cancel();
+        imageView.setAlpha(1f);
         imageView.setTag(tag);
 
         File userIcon = new File(getImagesDir(false), baseName + ".user.png");

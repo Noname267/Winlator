@@ -123,13 +123,35 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         scrollView.addView(llSchemeColorList);
         popupContent.addView(scrollView);
 
-        loadColorSwatches(llSchemeColorList, profile.getThemeColor(), color -> {
+        loadColorSwatches(llSchemeColorList, profile.getThemeColor(), 0xffffffff, color -> {
             profile.setThemeColor(color);
             profile.save();
             inputControlsView.invalidate();
         });
 
-        AppUtils.showPopupWindow(anchorView, popupContent, 320, 0);
+        GradientDrawable popupBackground = new GradientDrawable();
+        popupBackground.setColor(0xff2b2b2b);
+        popupBackground.setCornerRadius(UnitUtils.dpToPx(10));
+
+        popupContent.measure(View.MeasureSpec.makeMeasureSpec((int)UnitUtils.dpToPx(320), View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+        int[] location = new int[2];
+        anchorView.getLocationOnScreen(location);
+        int available = getResources().getDisplayMetrics().heightPixels - (location[1] + anchorView.getHeight()) - (int)UnitUtils.dpToPx(8);
+        int popupHeight = Math.max((int)UnitUtils.dpToPx(120), Math.min(popupContent.getMeasuredHeight(), available));
+
+        PopupWindow popupWindow = new PopupWindow(this);
+        popupWindow.setElevation(5.0f);
+        popupWindow.setBackgroundDrawable(popupBackground);
+        popupWindow.setWidth((int)UnitUtils.dpToPx(320));
+        popupWindow.setHeight(popupHeight);
+        popupWindow.setContentView(popupContent);
+        popupWindow.setFocusable(false);
+        popupWindow.setOutsideTouchable(true);
+        popupWindow.update();
+        popupWindow.showAsDropDown(anchorView);
+        popupWindow.setFocusable(true);
+        popupWindow.update();
     }
 
     private interface OnColorSelectedListener {
@@ -149,11 +171,19 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         0xffff2d92, 0xffff375f, 0xffff6ab0, 0xffe91e8c, 0xffad1457, 0xff6a0032, 0xffffb3d9, 0xffffdcef,
     };
 
-    private void loadColorSwatches(final LinearLayout parent, int selectedColor, final OnColorSelectedListener listener) {
+    private static void styleSwatch(GradientDrawable bg, int color, boolean selected, int strokeWidth, int thinStroke, float dash, int ringColor) {
+        boolean isDefault = color == 0;
+        bg.setColor(isDefault ? 0x00000000 : color);
+        bg.setStroke(selected ? strokeWidth : thinStroke, selected ? ringColor : (isDefault ? 0xff9e9e9e : 0x80808080), isDefault ? dash : 0, isDefault ? dash : 0);
+    }
+
+    private void loadColorSwatches(final LinearLayout parent, int selectedColor, final int ringColor, final OnColorSelectedListener listener) {
         parent.removeAllViews();
         int size = (int)UnitUtils.dpToPx(26);
         int margin = (int)UnitUtils.dpToPx(2);
-        int strokeWidth = (int)UnitUtils.dpToPx(2);
+        final int strokeWidth = (int)UnitUtils.dpToPx(3);
+        final int thinStroke = (int)UnitUtils.dpToPx(1);
+        final float dash = UnitUtils.dpToPx(3);
 
         final List<View> allSwatches = new ArrayList<>();
 
@@ -176,17 +206,16 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
 
                 GradientDrawable bg = new GradientDrawable();
                 bg.setShape(GradientDrawable.OVAL);
-                bg.setColor(color != 0 ? color : 0xffffffff);
-                bg.setStroke(isSelected ? strokeWidth : 0, 0xffffffff);
+                styleSwatch(bg, color, isSelected, strokeWidth, thinStroke, dash, ringColor);
                 swatch.setBackground(bg);
 
                 swatch.setOnClickListener(v -> {
                     for (View s : allSwatches) {
                         s.setSelected(false);
-                        ((GradientDrawable)s.getBackground()).setStroke(0, 0xffffffff);
+                        styleSwatch((GradientDrawable)s.getBackground(), (Integer)s.getTag(), false, strokeWidth, thinStroke, dash, ringColor);
                     }
                     swatch.setSelected(true);
-                    ((GradientDrawable)swatch.getBackground()).setStroke(strokeWidth, 0xffffffff);
+                    styleSwatch((GradientDrawable)swatch.getBackground(), color, true, strokeWidth, thinStroke, dash, ringColor);
                     listener.onColorSelected(color);
                 });
 
@@ -284,7 +313,7 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         sbOpacity.setProgress((int)(element.getOpacity() * 100));
 
         final LinearLayout llColorList = view.findViewById(R.id.LLColorList);
-        loadColorSwatches(llColorList, element.getCustomColor(), color -> {
+        loadColorSwatches(llColorList, element.getCustomColor(), 0xff263238, color -> {
             element.setCustomColor(color);
             profile.save();
             inputControlsView.invalidate();
