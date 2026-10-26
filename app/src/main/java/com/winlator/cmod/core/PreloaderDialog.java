@@ -215,6 +215,7 @@ public class PreloaderDialog {
         }
         catch (Exception e) {}
         releaseArtwork();
+        AppUtils.hideKeyboard(activity);
     }
 
     public void closeOnUiThread() {
