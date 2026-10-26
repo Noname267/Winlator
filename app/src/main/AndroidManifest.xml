@@ -64,6 +64,7 @@
         <activity
             android:name="com.winlator.cmod.MainActivity"
             android:theme="@style/AppTheme.Dark"
+            android:windowSoftInputMode="stateAlwaysHidden"
             android:screenOrientation="sensor"
             android:exported="true"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|density|navigation">
@@ -82,6 +83,7 @@
         <activity
             android:name="com.winlator.cmod.XServerDisplayActivity"
             android:theme="@style/AppThemeFullscreen"
+            android:windowSoftInputMode="stateAlwaysHidden"
             android:launchMode="singleTask"
             android:supportsPictureInPicture="true"
             android:screenOrientation="sensorLandscape"
