@@ -1088,6 +1088,8 @@ public class ContainerDetailFragment extends Fragment {
                     sEmulator.setSelection(1);
                     sEmulator64.setSelection(1);
                 }
+                AppUtils.dimSpinnerTextWhenSelected(sEmulator, "Box64");
+                AppUtils.keepSpinnerTextBright(sEmulator64);
                 loadBox64VersionSpinner(context, container, contentsManager, sBox64Version, wineInfo.isArm64EC());
                 setupDXWrapperSpinner(sDXWrapper, vDXWrapperConfig, wineInfo.isArm64EC());
             }
