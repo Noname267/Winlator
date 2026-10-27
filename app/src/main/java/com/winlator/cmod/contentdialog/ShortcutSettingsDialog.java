@@ -208,6 +208,8 @@ public class ShortcutSettingsDialog extends ContentDialog {
             sEmulator.setSelection(1);
             sEmulator64.setSelection(1);
         }
+        AppUtils.dimSpinnerTextWhenSelected(sEmulator, "Box64");
+        AppUtils.keepSpinnerTextBright(sEmulator64);
 
         ContainerDetailFragment.setupDXWrapperSpinner(sDXWrapper, vDXWrapperConfig, wineInfo.isArm64EC());
         loadBox64VersionSpinner(context, contentsManager, sBox64Version, wineInfo.isArm64EC());
