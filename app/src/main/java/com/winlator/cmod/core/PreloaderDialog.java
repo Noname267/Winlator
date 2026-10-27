@@ -5,6 +5,7 @@ import android.app.Dialog;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.content.SharedPreferences;
 import android.os.Environment;
 import android.text.TextUtils;
 import android.view.View;
@@ -12,6 +13,8 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.TextView;
+
+import androidx.preference.PreferenceManager;
 
 import com.winlator.cmod.R;
 import com.winlator.cmod.container.Container;
@@ -41,6 +44,21 @@ public class PreloaderDialog {
             window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
             window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
             window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+        }
+
+        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(activity);
+        if (preferences.getBoolean("dark_mode", false)) {
+            View panel = dialog.findViewById(R.id.LoadingPanel);
+            if (panel != null) {
+                int left = panel.getPaddingLeft();
+                int top = panel.getPaddingTop();
+                int right = panel.getPaddingRight();
+                int bottom = panel.getPaddingBottom();
+                panel.setBackgroundResource(R.drawable.preloader_background_dark);
+                panel.setPadding(left, top, right, bottom);
+                TextView panelText = dialog.findViewById(R.id.TextView);
+                if (panelText != null) panelText.setTextColor(0xFFFFFFFF);
+            }
         }
     }
 
