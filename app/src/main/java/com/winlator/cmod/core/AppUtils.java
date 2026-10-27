@@ -86,6 +86,33 @@ public abstract class AppUtils {
         else imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
     }
 
+    public static void keepSpinnerTextBright(final Spinner spinner) {
+        watchSpinnerText(spinner, null);
+    }
+
+    public static void dimSpinnerTextWhenSelected(final Spinner spinner, final String value) {
+        watchSpinnerText(spinner, value);
+    }
+
+    private static void watchSpinnerText(final Spinner spinner, final String dimValue) {
+        if (spinner == null) return;
+        if (spinner.getTag(R.id.SEmulator) == null) {
+            spinner.setTag(R.id.SEmulator, Boolean.TRUE);
+            spinner.addOnLayoutChangeListener((v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> applySpinnerText(spinner, dimValue));
+        }
+        applySpinnerText(spinner, dimValue);
+        spinner.post(() -> applySpinnerText(spinner, dimValue));
+    }
+
+    private static void applySpinnerText(Spinner spinner, String dimValue) {
+        Object selected = spinner.getSelectedItem();
+        boolean dim = dimValue != null && selected != null && selected.toString().equalsIgnoreCase(dimValue);
+        for (int i = 0; i < spinner.getChildCount(); i++) {
+            View child = spinner.getChildAt(i);
+            if (child.isEnabled() == dim) child.setEnabled(!dim);
+        }
+    }
+
     public static void hideKeyboard(final Activity activity) {
         if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
         final View decorView = activity.getWindow().getDecorView();
