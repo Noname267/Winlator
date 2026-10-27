@@ -86,6 +86,24 @@ public abstract class AppUtils {
         else imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
     }
 
+    public static void hideKeyboard(final Activity activity) {
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) return;
+        final View decorView = activity.getWindow().getDecorView();
+        final Runnable hide = () -> {
+            if (activity.isFinishing() || activity.isDestroyed()) return;
+            InputMethodManager imm = (InputMethodManager)activity.getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) imm.hideSoftInputFromWindow(decorView.getWindowToken(), 0);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                WindowInsetsController controller = decorView.getWindowInsetsController();
+                if (controller != null) controller.hide(WindowInsets.Type.ime());
+            }
+        };
+        hide.run();
+        decorView.postDelayed(hide, 100L);
+        decorView.postDelayed(hide, 300L);
+        decorView.postDelayed(hide, 700L);
+    }
+
     public static void hideSystemUI(final Activity activity) {
         Window window = activity.getWindow();
         final View decorView = window.getDecorView();

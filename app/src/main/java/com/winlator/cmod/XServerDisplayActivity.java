@@ -903,7 +903,8 @@ public class XServerDisplayActivity extends AppCompatActivity implements Navigat
                     stopService(notificationService);
                 }
                 
-                AppUtils.restartApplication(getApplicationContext());
+                AppUtils.hideKeyboard(XServerDisplayActivity.this);
+                handler.postDelayed(() -> AppUtils.restartApplication(getApplicationContext()), 400);
             }
         }, 1000);
     }
