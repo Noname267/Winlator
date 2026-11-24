@@ -7,6 +7,7 @@ public class FEXCorePreset {
     public static final String COMPATIBILITY = "COMPATIBILITY";
     public static final String INTERMEDIATE = "INTERMEDIATE";
     public static final String PERFORMANCE = "PERFORMANCE";
+    public static final String PERFORMANCE_V2 = "PERFORMANCE_V2";
     public static final String CUSTOM = "CUSTOM";
     public final String id;
     public final String name;
